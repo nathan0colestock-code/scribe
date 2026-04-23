@@ -9,6 +9,7 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { parse as parseCookie } from 'cookie';
 import { WebSocketServer } from 'ws';
+import { createRequire } from 'node:module';
 
 import * as db from './db.js';
 import { createCollabServer } from './collab.js';
@@ -103,8 +104,85 @@ app.use((req, _res, next) => {
   next();
 });
 
+// ---- Bearer auth (suite-wide) ----
+// Accepts either the app's own API_KEY or the shared SUITE_API_KEY env var.
+// Used for /api/status (and any future suite-level probes). Cookie session
+// remains the primary path for interactive UI use.
+function checkBearerAuth(req) {
+  const header = req.headers.authorization || '';
+  const m = /^Bearer\s+(.+)$/.exec(header);
+  const token = m ? m[1].trim() : (req.headers['x-api-key'] || '').trim();
+  if (!token) return false;
+  const candidates = [process.env.API_KEY, process.env.SUITE_API_KEY].filter(Boolean);
+  if (candidates.length === 0) return false;
+  const tBuf = Buffer.from(token);
+  for (const c of candidates) {
+    const cBuf = Buffer.from(c);
+    if (tBuf.length === cBuf.length && crypto.timingSafeEqual(tBuf, cBuf)) return true;
+  }
+  return false;
+}
+function requireBearer(req, res, next) {
+  if (checkBearerAuth(req)) return next();
+  return res.status(401).json({ error: 'auth required' });
+}
+
+// Load package.json version for /api/status.
+const APP_VERSION = (() => {
+  try {
+    const req = createRequire(import.meta.url);
+    return req('./package.json').version || '0.0.0';
+  } catch { return '0.0.0'; }
+})();
+
 // ---- Public routes ----
 app.get('/api/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
+// ---- /api/status ----
+// Suite-wide status endpoint. Returns app name, version, uptime, and a small
+// set of metrics. Each metric is wrapped in try/catch so a bad query can't
+// take the endpoint down — probes should never flap because of a migration.
+app.get('/api/status', requireBearer, (_req, res) => {
+  const runCount = (sql) => {
+    try {
+      const row = db.db.prepare(sql).get();
+      if (!row) return 0;
+      const v = Object.values(row)[0];
+      return typeof v === 'number' ? v : Number(v) || 0;
+    } catch { return 0; }
+  };
+  const runNullableCount = (sql) => {
+    try {
+      const row = db.db.prepare(sql).get();
+      if (!row) return null;
+      const v = Object.values(row)[0];
+      return typeof v === 'number' ? v : Number(v) || 0;
+    } catch { return null; }
+  };
+
+  const total_documents = runCount('SELECT COUNT(*) AS n FROM documents');
+  // Active collaborators in the last 5 minutes (null if column/table absent).
+  const active_collaborators = runNullableCount(
+    `SELECT COUNT(DISTINCT user_email) AS n FROM document_collaborators
+     WHERE last_seen_at IS NOT NULL
+       AND last_seen_at >= datetime('now','-5 minutes')`
+  );
+  const gloss_linked_collections = runCount(
+    "SELECT COUNT(*) AS n FROM gloss_links WHERE kind = 'collection'"
+  );
+
+  res.json({
+    app: 'scribe',
+    version: APP_VERSION,
+    ok: true,
+    uptime_seconds: Math.floor(process.uptime()),
+    metrics: {
+      total_documents,
+      active_collaborators,
+      gloss_linked_collections,
+    },
+  });
+});
 
 app.post('/api/login', (req, res) => {
   const { password } = req.body || {};
