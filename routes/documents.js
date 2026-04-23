@@ -1,5 +1,6 @@
 import express from 'express';
 import * as db from '../db.js';
+import { snapshotForStageTransition } from '../collab.js';
 
 export const router = express.Router();
 
@@ -55,7 +56,20 @@ router.patch('/:id', (req, res) => {
   const access = ensureAccess(req, res, req.params.id);
   if (!access) return;
   if (access.role !== 'editor') return res.status(403).json({ error: 'editor only' });
-  const doc = db.updateDocumentMeta(req.params.id, req.body || {});
+  const body = req.body || {};
+  // Stage transitions are client-side state (localStorage), but when the
+  // client tells us one is happening we snapshot the current yjs_state
+  // so the "undo an entire outline→draft transition" affordance works.
+  // body = { stage: 'draft', previous_stage: 'outline', stage_kind?: 'draft'|'outline' }
+  const { stage, previous_stage, stage_kind } = body;
+  if (stage && previous_stage && stage !== previous_stage) {
+    try {
+      snapshotForStageTransition(req.params.id, previous_stage, stage, stage_kind || 'draft');
+    } catch (err) {
+      console.warn(`[documents PATCH] stage snapshot failed: ${err.message}`);
+    }
+  }
+  const doc = db.updateDocumentMeta(req.params.id, body);
   res.json({ document: doc });
 });
 

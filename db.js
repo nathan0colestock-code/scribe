@@ -439,3 +439,6 @@ export function listSnapshots(document_id) {
     WHERE document_id = ? ORDER BY created_at DESC
   `).all(document_id);
 }
+export function deleteSnapshot(id) {
+  db.prepare(`DELETE FROM document_snapshots WHERE id = ?`).run(id);
+}
