@@ -16,7 +16,7 @@ db.pragma('foreign_keys = ON');
 
 const migrations = fs.readFileSync(path.join(__dirname, 'migrations', '001_init.sql'), 'utf8');
 db.exec(migrations);
-for (const mig of ['002_outline_doc.sql', '003_gloss_artifact.sql']) {
+for (const mig of ['002_outline_doc.sql', '003_gloss_artifact.sql', '004_source_json.sql']) {
   const sql = fs.readFileSync(path.join(__dirname, 'migrations', mig), 'utf8');
   for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
     try { db.exec(stmt + ';'); } catch (e) { if (!e.message.includes('duplicate column')) throw e; }
@@ -28,18 +28,39 @@ const sha256 = (s) => crypto.createHash('sha256').update(s || '').digest('hex');
 
 // ---- Documents ----
 
-export function createDocument({ title = 'Untitled', owner_email, description = '', main_point = '' }) {
+export function createDocument({ title = 'Untitled', owner_email, description = '', main_point = '', source = null, pending_seed = null }) {
   const id = nanoid(12);
   const t = now();
+  const source_json = source ? JSON.stringify(source) : null;
   db.prepare(`
-    INSERT INTO documents (id, title, owner_email, description, main_point, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, title, owner_email, description, main_point, t, t);
+    INSERT INTO documents (id, title, owner_email, description, main_point, source_json, pending_seed, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, title, owner_email, description, main_point, source_json, pending_seed, t, t);
   return getDocument(id);
+}
+
+// Consume the pending seed text for a server-side create-and-redirect flow
+// (e.g. Black's "Open in Scribe"). The seed is read-once: the first caller
+// gets the text, subsequent callers get null. Returning null means "no seed
+// waiting" — callers can quietly skip the draft-insertion step.
+export function consumePendingSeed(id) {
+  const row = db.prepare(`SELECT pending_seed FROM documents WHERE id = ?`).get(id);
+  if (!row?.pending_seed) return null;
+  const seed = row.pending_seed;
+  db.prepare(`UPDATE documents SET pending_seed = NULL WHERE id = ?`).run(id);
+  return seed;
 }
 
 export function getDocument(id) {
   return db.prepare(`SELECT * FROM documents WHERE id = ?`).get(id);
+}
+
+// Parse the `source_json` blob into an object. Tolerant of bad JSON so a
+// corrupt row never takes down a document fetch — returns null instead.
+export function getDocumentSource(id) {
+  const row = db.prepare(`SELECT source_json FROM documents WHERE id = ?`).get(id);
+  if (!row?.source_json) return null;
+  try { return JSON.parse(row.source_json); } catch { return null; }
 }
 
 export function listDocumentsForUser(email) {

@@ -42,23 +42,45 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
   // Paste-import seeding: App.jsx stashes pasted text in sessionStorage under
   // scribe-seed-<docId> before navigating here. On first readiness of the
   // draft editor, flush it in, clear the stash, and hop to the Draft stage.
+  //
+  // Cross-app hand-off (e.g. black → scribe "Open in Scribe"): the server
+  // stashes the seed on documents.pending_seed, and GET /pending-seed is a
+  // read-once consumer. If there's no sessionStorage seed but the doc has a
+  // `source` field, we fetch and apply the pending seed.
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current) return;
     if (!draftEditor.editor || role !== 'editor') return;
+
     const key = `scribe-seed-${doc.id}`;
-    const text = sessionStorage.getItem(key);
-    if (!text) return;
-    // Insert as paragraph-separated blocks — plain-text exports use blank
-    // lines between paragraphs, which we preserve as TipTap paragraphs.
-    const blocks = text.split(/\n{2,}/).filter(s => s.trim().length);
-    draftEditor.editor.chain().focus('end').insertContent(
-      blocks.map(b => ({ type: 'paragraph', content: [{ type: 'text', text: b }] })),
-    ).run();
-    sessionStorage.removeItem(key);
-    seededRef.current = true;
-    setStage('draft');
-  }, [draftEditor.editor, role, doc.id]);
+    const local = sessionStorage.getItem(key);
+
+    const applySeed = (text) => {
+      if (!text) return;
+      const blocks = text.split(/\n{2,}/).filter(s => s.trim().length);
+      draftEditor.editor.chain().focus('end').insertContent(
+        blocks.map(b => ({ type: 'paragraph', content: [{ type: 'text', text: b }] })),
+      ).run();
+      seededRef.current = true;
+      setStage('draft');
+    };
+
+    if (local) {
+      applySeed(local);
+      sessionStorage.removeItem(key);
+      return;
+    }
+    // Only hit the server for a pending seed when the doc was created with a
+    // cross-app source — this is the only path that queues one. Avoids an
+    // extra network call on every ordinary document open.
+    if (doc.source) {
+      // Mark early so StrictMode double-fires don't double-seed.
+      seededRef.current = true;
+      api.pendingSeed(doc.id).then(r => {
+        if (r?.seed_body) applySeed(r.seed_body);
+      }).catch(() => {});
+    }
+  }, [draftEditor.editor, role, doc.id, doc.source]);
 
   const saveTimer = useRef(null);
   function saveMeta(patch) {

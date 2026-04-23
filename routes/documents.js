@@ -12,16 +12,52 @@ router.get('/', (req, res) => {
   res.json({ documents: db.listDocumentsForUser(email) });
 });
 
+// POST /api/documents
+//
+// Optional body fields:
+//   - source:    { kind: 'black'|'gloss'|..., ...origin-specific fields }
+//                Persisted in documents.source_json and returned as-is on
+//                GET /api/documents/:id. Only a plain object with a string
+//                `kind` is stored — anything else is ignored.
+//   - seed_body: plain text the caller wants injected into the initial
+//                draft editor on first open. The server does not touch
+//                Yjs here; instead we echo `seed_body` back to the client
+//                which writes it to sessionStorage (scribe-seed-<id>) so
+//                the existing PasteImportDialog hand-off in
+//                src/App.jsx + DocumentView seeds the draft editor on
+//                mount. Keeps the API surface Yjs-agnostic.
 router.post('/', (req, res) => {
   if (!req.user.is_owner) return res.status(403).json({ error: 'owner only' });
-  const { title, description, main_point } = req.body || {};
+  const { title, description, main_point, source, seed_body } = req.body || {};
+  const safeSource = (source && typeof source === 'object' && typeof source.kind === 'string')
+    ? source
+    : null;
+  const safeSeed = (typeof seed_body === 'string' && seed_body.length > 0) ? seed_body : null;
   const doc = db.createDocument({
     title: title || 'Untitled',
     owner_email: req.user.email,
     description: description || '',
     main_point: main_point || '',
+    source: safeSource,
+    // Persist seed_body on the row so a server-initiated create (e.g. black's
+    // "Open in Scribe" endpoint → redirect) survives until the browser opens
+    // the document. First call to GET /:id/pending-seed clears it.
+    pending_seed: safeSeed,
   });
-  res.json({ document: doc });
+  const payload = { document: { ...doc, source: safeSource } };
+  if (safeSeed) payload.seed_body = safeSeed;
+  res.json(payload);
+});
+
+// Read-once: returns any pending_seed text queued when the doc was created,
+// then clears it. Used by the DocumentView draft-seeding hand-off when the
+// doc was seeded by a server-to-server create (e.g. Black's Open in Scribe).
+router.get('/:id/pending-seed', (req, res) => {
+  const access = ensureAccess(req, res, req.params.id);
+  if (!access) return;
+  if (access.role !== 'editor') return res.status(403).json({ error: 'editor only' });
+  const seed = db.consumePendingSeed(req.params.id);
+  res.json({ seed_body: seed });
 });
 
 router.get('/:id', (req, res) => {
@@ -38,6 +74,7 @@ router.get('/:id', (req, res) => {
       owner_email: doc.owner_email,
       created_at: doc.created_at,
       updated_at: doc.updated_at,
+      source: db.getDocumentSource(doc.id),
     },
     role,
     is_owner: isOwner,

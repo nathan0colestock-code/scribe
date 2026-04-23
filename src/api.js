@@ -23,6 +23,9 @@ export const api = {
   listDocuments: () => request('/api/documents'),
   createDocument: (body) => request('/api/documents', { method: 'POST', body }),
   getDocument: (id) => request(`/api/documents/${id}`),
+  // Read-once: drains any server-queued seed text for this doc (e.g. black
+  // "Open in Scribe" hand-off). Returns { seed_body: string | null }.
+  pendingSeed: (id) => request(`/api/documents/${id}/pending-seed`),
   collabToken: (id) => request(`/api/documents/${id}/collab-token`),
   updateDocument: (id, body) => request(`/api/documents/${id}`, { method: 'PATCH', body }),
   deleteDocument: (id) => request(`/api/documents/${id}`, { method: 'DELETE' }),
