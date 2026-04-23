@@ -1,0 +1,14 @@
+# Litestream config — continuously replicates the scribe SQLite DB to R2.
+# The /data mount lives on a Fly volume (see fly.toml); R2 is the off-host copy.
+# All secrets are read from env at start. If R2_* are unset, `litestream replicate`
+# logs a warning but still execs the wrapped process, so the app stays up.
+dbs:
+  - path: /app/data/scribe.db
+    replicas:
+      - type: s3
+        endpoint: ${R2_ENDPOINT}
+        bucket: nathan-suite-backups
+        path: scribe/scribe.db
+        region: auto
+        access-key-id: ${R2_ACCESS_KEY_ID}
+        secret-access-key: ${R2_SECRET_ACCESS_KEY}
