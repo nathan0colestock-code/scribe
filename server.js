@@ -185,13 +185,46 @@ app.get('/api/status', requireBearer, (_req, res) => {
   });
 });
 
-app.post('/api/login', (req, res) => {
+// ── Login rate limit ──────────────────────────────────────────────────────────
+// In-memory sliding window; 5 attempts / 15 minutes per IP. No persistence —
+// a machine restart wipes the counter, which is acceptable for a single-user
+// app. Matches the pattern in comms/black/server.js.
+const LOGIN_RATE = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+function loginRateLimit(req, res, next) {
+  const key = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const rec = LOGIN_RATE.get(key);
+  if (rec && now - rec.firstAttemptAt > LOGIN_WINDOW_MS) LOGIN_RATE.delete(key);
+  const cur = LOGIN_RATE.get(key);
+  if (cur && cur.count >= LOGIN_MAX_ATTEMPTS) {
+    const retry = Math.ceil((cur.firstAttemptAt + LOGIN_WINDOW_MS - now) / 1000);
+    res.set('Retry-After', String(Math.max(retry, 1)));
+    return res.status(429).json({ error: 'too many attempts' });
+  }
+  if (LOGIN_RATE.size > 1000) {
+    for (const [k, v] of LOGIN_RATE) {
+      if (now - v.firstAttemptAt > LOGIN_WINDOW_MS) LOGIN_RATE.delete(k);
+    }
+  }
+  next();
+}
+function recordLoginAttempt(req) {
+  const key = req.ip || req.socket?.remoteAddress || 'unknown';
+  const cur = LOGIN_RATE.get(key);
+  if (cur) cur.count += 1;
+  else LOGIN_RATE.set(key, { count: 1, firstAttemptAt: Date.now() });
+}
+
+app.post('/api/login', loginRateLimit, (req, res) => {
   const { password } = req.body || {};
   if (!AUTH_ENABLED) return res.json({ ok: true });
   if (!password || typeof password !== 'string') return res.status(400).json({ error: 'password required' });
   const a = Buffer.from(password);
   const b = Buffer.from(AUTH_PASSWORD);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    recordLoginAttempt(req);
     return res.status(401).json({ error: 'bad password' });
   }
   const cookie = signOwnerCookie();
