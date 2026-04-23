@@ -35,10 +35,8 @@ router.post('/:id/gloss/links', async (req, res) => {
   gloss.hydrateLink({ document_id: a.doc.id, kind, gloss_id, label })
     .catch(err => console.warn('[gloss] hydrate failed:', err.message));
 
-  if (kind === 'collection') {
-    gloss.ensureGlossArtifact(a.doc, gloss_id)
-      .catch(err => console.warn('[gloss] artifact sync failed:', err.message));
-  }
+  gloss.ensureGlossArtifact(a.doc, kind === 'collection' ? gloss_id : null)
+    .catch(err => console.warn('[gloss] artifact sync failed:', err.message));
 
   res.json({ link });
 });

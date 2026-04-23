@@ -592,6 +592,24 @@ a.notecard-source:hover { text-decoration: underline; }
 .cards .card-snippet mark { background: var(--highlight); padding: 0 2px; border-radius: 1px; font-style: normal; }
 .cards .refresh-btn { font-size: 11px; padding: 3px 8px; margin-bottom: 10px; }
 
+/* ---- Drag handle (tiptap-extension-global-drag-handle) ---- */
+.drag-handle {
+  position: fixed;
+  opacity: 1;
+  transition: opacity ease 0.2s;
+  border-radius: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16'%3E%3Ccircle cx='3' cy='3' r='1.3' fill='%237b7668'/%3E%3Ccircle cx='7' cy='3' r='1.3' fill='%237b7668'/%3E%3Ccircle cx='3' cy='8' r='1.3' fill='%237b7668'/%3E%3Ccircle cx='7' cy='8' r='1.3' fill='%237b7668'/%3E%3Ccircle cx='3' cy='13' r='1.3' fill='%237b7668'/%3E%3Ccircle cx='7' cy='13' r='1.3' fill='%237b7668'/%3E%3C/svg%3E");
+  background-size: 10px 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 1.25rem;
+  height: 1.5rem;
+  z-index: 50;
+  cursor: grab;
+}
+.drag-handle:hover { background-color: var(--accent-soft); }
+.drag-handle.hide { opacity: 0; pointer-events: none; }
+
 /* ---- Pill/tag ---- */
 .pill {
   display: inline-block;

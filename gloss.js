@@ -91,16 +91,23 @@ async function pageIdsForLink({ kind, gloss_id, label }) {
   }
   // Topic / person / book / scripture: fall back to /api/search by label.
   const res = await request(`/api/search?q=${encodeURIComponent(label)}`);
-  const ids = new Set();
+  const pageMap = new Map();
   for (const group of Object.values(res || {})) {
     if (Array.isArray(group)) {
       for (const hit of group) {
-        if (hit.page_id) ids.add(String(hit.page_id));
-        if (hit.id && hit.kind === 'page') ids.add(String(hit.id));
+        const id = hit.page_id ? String(hit.page_id) : (hit.id && hit.kind === 'page' ? String(hit.id) : null);
+        if (id && !pageMap.has(id)) {
+          pageMap.set(id, {
+            id,
+            volume: hit.volume || null,
+            page_number: hit.page_number != null ? String(hit.page_number) : null,
+            collection_title: label,
+          });
+        }
       }
     }
   }
-  return [...ids].map(id => ({ id, volume: null, page_number: null, collection_title: label }));
+  return [...pageMap.values()];
 }
 
 export async function fetchTranscript(page_id) {
