@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { parse as parseCookie } from 'cookie';
 import { WebSocketServer } from 'ws';
 import { createRequire } from 'node:module';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 import * as db from './db.js';
 import { createCollabServer } from './collab.js';
@@ -76,16 +78,46 @@ function verifyShareSession(val) {
   if (!payload || !sig) return null;
   const expected = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
   if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  let data;
   try {
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    if (Date.now() - data.ts > COOKIE_MAX_AGE_MS) return null;
-    return data;
+    data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
   } catch { return null; }
+  if (Date.now() - data.ts > COOKIE_MAX_AGE_MS) return null;
+  // Re-check the share token against the DB on every HTTP request. Without
+  // this, revoking a share link via DELETE /api/documents/:id/shares/:token
+  // has no effect on HTTP routes until the cookie expires (the WS path
+  // already validates via collab.js). See audit 2026-04-23.
+  const row = db.getShareToken(data.token);
+  if (!row || row.revoked_at) return null;
+  if (row.document_id !== data.documentId || row.role !== data.role) return null;
+  return data;
 }
 
 // ---- Express setup ----
 const app = express();
+app.use(helmet({
+  // CSP is disabled for now — the Vite dev proxy + existing inline styles need
+  // a proper policy audit before we can turn it on. Tracked in TODO.
+  contentSecurityPolicy: false,
+}));
 app.use(express.json({ limit: '4mb' }));
+
+// Pre-auth throttles to blunt brute-force against /api/login and spray
+// attacks against /api/join (which creates a guest user per display name).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many attempts' },
+});
+const joinLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many attempts' },
+});
 
 app.use((req, _res, next) => {
   const cookies = parseCookie(req.headers.cookie || '');
@@ -185,7 +217,7 @@ app.get('/api/status', requireBearer, (_req, res) => {
   });
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginLimiter, (req, res) => {
   const { password } = req.body || {};
   if (!AUTH_ENABLED) return res.json({ ok: true });
   if (!password || typeof password !== 'string') return res.status(400).json({ error: 'password required' });
@@ -218,7 +250,7 @@ app.get('/api/me', (req, res) => {
 });
 
 // Share-token join: public (you need the token).
-app.post('/api/join', (req, res) => {
+app.post('/api/join', joinLimiter, (req, res) => {
   const { token, displayName, color } = req.body || {};
   if (!token) return res.status(400).json({ error: 'token required' });
   const share = db.getShareToken(token);
