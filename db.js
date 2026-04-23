@@ -16,7 +16,7 @@ db.pragma('foreign_keys = ON');
 
 const migrations = fs.readFileSync(path.join(__dirname, 'migrations', '001_init.sql'), 'utf8');
 db.exec(migrations);
-for (const mig of ['002_outline_doc.sql', '003_gloss_artifact.sql']) {
+for (const mig of ['002_outline_doc.sql', '003_gloss_artifact.sql', '004_readwise.sql']) {
   const sql = fs.readFileSync(path.join(__dirname, 'migrations', mig), 'utf8');
   for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
     try { db.exec(stmt + ';'); } catch (e) { if (!e.message.includes('duplicate column')) throw e; }
@@ -421,6 +421,123 @@ export function upsertStyleGuide({ id, owner_email, title, body_md }) {
 }
 export function deleteStyleGuide(id, owner_email) {
   db.prepare(`DELETE FROM style_guides WHERE id = ? AND owner_email = ?`).run(id, owner_email);
+}
+
+// ---- Readwise ----
+//
+// Local mirror of Readwise books + highlights. Pulls happen in routes/readwise.js;
+// these helpers are purely storage/query. Never write back to Readwise.
+
+export function upsertReadwiseBook(book) {
+  db.prepare(`
+    INSERT INTO readwise_books (id, title, author, category, source_url, cover_url, num_highlights, synced_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      title          = excluded.title,
+      author         = excluded.author,
+      category       = excluded.category,
+      source_url     = excluded.source_url,
+      cover_url      = excluded.cover_url,
+      num_highlights = excluded.num_highlights,
+      synced_at      = excluded.synced_at
+  `).run(
+    book.id,
+    book.title,
+    book.author ?? null,
+    book.category || 'books',
+    book.source_url ?? null,
+    book.cover_url ?? null,
+    Number.isFinite(book.num_highlights) ? book.num_highlights : 0,
+    now(),
+  );
+}
+
+export function upsertReadwiseHighlight(h) {
+  db.prepare(`
+    INSERT INTO readwise_highlights (id, book_id, text, note, location, url, highlighted_at, updated, synced_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      book_id        = excluded.book_id,
+      text           = excluded.text,
+      note           = excluded.note,
+      location       = excluded.location,
+      url            = excluded.url,
+      highlighted_at = excluded.highlighted_at,
+      updated        = excluded.updated,
+      synced_at      = excluded.synced_at
+  `).run(
+    h.id,
+    h.book_id,
+    h.text,
+    h.note ?? null,
+    h.location ?? null,
+    h.url ?? null,
+    h.highlighted_at ?? null,
+    h.updated,
+    now(),
+  );
+}
+
+export function listReadwiseBooks() {
+  return db.prepare(`
+    SELECT b.*,
+           (SELECT COUNT(*) FROM readwise_highlights h WHERE h.book_id = b.id) AS highlight_count
+    FROM readwise_books b
+    ORDER BY b.title COLLATE NOCASE
+  `).all();
+}
+
+export function getReadwiseBook(id) {
+  return db.prepare(`SELECT * FROM readwise_books WHERE id = ?`).get(id);
+}
+
+export function listReadwiseHighlightsForBook(book_id, { limit = 100, offset = 0 } = {}) {
+  return db.prepare(`
+    SELECT * FROM readwise_highlights
+    WHERE book_id = ?
+    ORDER BY COALESCE(highlighted_at, updated) DESC
+    LIMIT ? OFFSET ?
+  `).all(book_id, limit, offset);
+}
+
+export function listRecentReadwiseHighlights(limit = 20) {
+  return db.prepare(`
+    SELECT h.*, b.title AS book_title, b.author AS book_author, b.category AS book_category
+    FROM readwise_highlights h
+    JOIN readwise_books b ON b.id = h.book_id
+    ORDER BY COALESCE(h.highlighted_at, h.updated) DESC
+    LIMIT ?
+  `).all(limit);
+}
+
+export function searchReadwiseHighlights(q, limit = 20) {
+  if (!q || !q.trim()) return [];
+  const like = `%${q.trim().replace(/[%_]/g, s => '\\' + s)}%`;
+  return db.prepare(`
+    SELECT h.id AS highlight_id,
+           h.text, h.note, h.location, h.url, h.highlighted_at,
+           b.id AS book_id, b.title AS book_title, b.author AS book_author, b.category AS book_category
+    FROM readwise_highlights h
+    JOIN readwise_books b ON b.id = h.book_id
+    WHERE h.text LIKE ? ESCAPE '\\'
+       OR h.note LIKE ? ESCAPE '\\'
+       OR b.title LIKE ? ESCAPE '\\'
+    ORDER BY COALESCE(h.highlighted_at, h.updated) DESC
+    LIMIT ?
+  `).all(like, like, like, limit);
+}
+
+export function getSyncState(key) {
+  const row = db.prepare(`SELECT value FROM sync_state WHERE key = ?`).get(key);
+  return row?.value || null;
+}
+
+export function setSyncState(key, value) {
+  db.prepare(`
+    INSERT INTO sync_state (key, value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `).run(key, value, now());
 }
 
 // ---- Snapshots ----
