@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { ConfirmDialog } from '../dialogs/ConfirmDialog.jsx';
 
 export function StyleGuideEditor({ onClose, onActiveChange, activeId }) {
   const [guides, setGuides] = useState([]);
   const [editing, setEditing] = useState(null);
   const [err, setErr] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   async function load() {
     try { const r = await api.listStyleGuides(); setGuides(r.guides || []); }
@@ -20,12 +22,26 @@ export function StyleGuideEditor({ onClose, onActiveChange, activeId }) {
   }
 
   async function del(id) {
-    if (!confirm('Delete this style guide?')) return;
-    await api.deleteStyleGuide(id);
+    setConfirmDeleteId(id);
+  }
+
+  async function confirmDelete() {
+    await api.deleteStyleGuide(confirmDeleteId);
+    setConfirmDeleteId(null);
     await load();
   }
 
   return (
+    <>
+    {confirmDeleteId && (
+      <ConfirmDialog
+        message="Delete this style guide? This cannot be undone."
+        confirmLabel="Delete"
+        confirmClassName="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
+    )}
     <div className="linker-dialog" onClick={onClose}>
       <div className="panel" onClick={e => e.stopPropagation()}>
         <h3>Style guides</h3>
@@ -78,5 +94,6 @@ export function StyleGuideEditor({ onClose, onActiveChange, activeId }) {
         )}
       </div>
     </div>
+    </>
   );
 }
