@@ -26,6 +26,7 @@ import { router as outlineRouter } from './routes/outline.js';
 import { router as commsRouter } from './routes/comms.js';
 import { router as readwiseRouter, runSync as runReadwiseSync } from './routes/readwise.js';
 import * as readwiseClient from './readwise.js';
+import { router as blackRouter } from './routes/black.js';
 
 // ---- Env loader (simple KEY=VALUE .env, no dotenv dep) ----
 try {
@@ -301,6 +302,7 @@ app.use('/api/documents', suggestionsRouter);
 app.use('/api/documents', glossRouter);
 app.use('/api/documents', outlineRouter);
 app.use('/api/documents', commsRouter);
+app.use('/api/documents', blackRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/style-guides', styleRouter);
 app.use('/api/readwise', readwiseRouter);

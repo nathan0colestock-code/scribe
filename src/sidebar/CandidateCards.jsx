@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
+import { ArchiveSuggestions } from './ArchiveSuggestions.jsx';
 
 function useDebounce(value, delay) {
   const [v, setV] = useState(value);
@@ -10,7 +11,7 @@ function useDebounce(value, delay) {
   return v;
 }
 
-export function CandidateCards({ documentId, queryParts, excludedPageIds }) {
+export function CandidateCards({ documentId, queryParts, excludedPageIds, insertEditor }) {
   const [stats, setStats] = useState({ total: 0, with_text: 0, last_fetched: null });
   const [links, setLinks] = useState([]);
   const [hits, setHits] = useState([]);
@@ -73,6 +74,8 @@ export function CandidateCards({ documentId, queryParts, excludedPageIds }) {
       ) : visibleHits.map(h => (
         <GlossCard key={`${h.page_id}-${(h.snippet || '').slice(0, 20)}`} hit={h} documentId={documentId} />
       ))}
+
+      <ArchiveSuggestions documentId={documentId} insertEditor={insertEditor} />
     </div>
   );
 }
