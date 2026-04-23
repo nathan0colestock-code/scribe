@@ -616,6 +616,41 @@ a.notecard-source:hover { text-decoration: underline; }
 .cards .card-snippet mark { background: var(--highlight); padding: 0 2px; border-radius: 1px; font-style: normal; }
 .cards .refresh-btn { font-size: 11px; padding: 3px 8px; margin-bottom: 10px; }
 
+/* ---- Reference panel (gloss notecards + Readwise highlights) ---- */
+.reference-panel { display: flex; flex-direction: column; height: 100%; }
+.reference-tabs {
+  display: flex; gap: 4px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.reference-tabs button {
+  background: transparent; border: none; padding: 6px 10px;
+  color: var(--ink-muted); cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font: 600 11px ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.reference-tabs button.active { color: var(--ink); border-bottom-color: var(--accent); }
+
+.readwise-panel .readwise-search {
+  width: 100%; padding: 5px 8px; margin-bottom: 10px;
+  border: 1px solid var(--rule); border-radius: 4px; font-size: 12px;
+  background: var(--paper, #fff); color: var(--ink);
+}
+.readwise-panel .warn { color: #a14b00; }
+.readwise-group { margin-bottom: 14px; }
+.readwise-book {
+  font: 600 11px ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--accent); margin-bottom: 6px;
+}
+.readwise-author { color: var(--ink-muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.readwise-card { cursor: pointer; }
+.readwise-card:hover { border-color: var(--accent); }
+.readwise-note {
+  font-size: 11px; color: var(--ink-muted); margin-top: 4px;
+  font-style: italic;
+}
+
 /* ---- Pill/tag ---- */
 .pill {
   display: inline-block;

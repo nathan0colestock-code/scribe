@@ -4,6 +4,7 @@ import { api } from './api.js';
 import { useCollabEditor, EditorPane, cardToNotecardNode, setProofreadSuggestions, docToPlainText, getProofreadState } from './editor/Editor.jsx';
 import { ProofreadPopover } from './editor/ProofreadPopover.jsx';
 import { CandidateCards } from './sidebar/CandidateCards.jsx';
+import { ReadwisePanel } from './sidebar/ReadwisePanel.jsx';
 import { CommentPanel } from './comments/CommentPanel.jsx';
 import { SuggestionPanel } from './suggestions/SuggestionPanel.jsx';
 import { LinkerDialog } from './gloss/LinkerDialog.jsx';
@@ -246,6 +247,29 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
   );
 }
 
+// Reference panel: hosts the notebook cards (gloss) and Readwise highlights
+// under a small tab switcher. Both feed the editor on the left. `insertEditor`
+// is the editor Readwise should insert blockquotes into — typically the draft
+// editor, falling back to whichever editor is visible for the stage.
+function ReferencePanel({ documentId, queryParts, insertEditor }) {
+  const [tab, setTab] = useState(() => localStorage.getItem('scribe.refPanel.tab') || 'notebook');
+  useEffect(() => { localStorage.setItem('scribe.refPanel.tab', tab); }, [tab]);
+  return (
+    <div className="reference-panel">
+      <div className="tabs reference-tabs">
+        <button className={tab === 'notebook' ? 'active' : ''} onClick={() => setTab('notebook')}>Notebook</button>
+        <button className={tab === 'readwise' ? 'active' : ''} onClick={() => setTab('readwise')}>Readwise</button>
+      </div>
+      {tab === 'notebook' && (
+        <CandidateCards documentId={documentId} queryParts={queryParts} />
+      )}
+      {tab === 'readwise' && (
+        <ReadwisePanel editor={insertEditor} />
+      )}
+    </div>
+  );
+}
+
 // Outline stage: full-width Tiptap outline editor with notecards on the right.
 function OutlineStage({ doc, canEdit, saveMeta, outlineEditor, queryParts, onDrop, onDragOver }) {
   return (
@@ -283,9 +307,10 @@ function OutlineStage({ doc, canEdit, saveMeta, outlineEditor, queryParts, onDro
           />
         </div>
         <div className="cards-column">
-          <CandidateCards
+          <ReferencePanel
             documentId={doc.id}
             queryParts={queryParts}
+            insertEditor={outlineEditor}
           />
         </div>
       </div>
@@ -328,9 +353,10 @@ function DraftStage({ doc, canEdit, saveMeta, outlineEditor, draftEditor, showOu
         </div>
         {showCards && (
           <div className="side-panel right">
-            <CandidateCards
+            <ReferencePanel
               documentId={doc.id}
               queryParts={queryParts}
+              insertEditor={draftEditor}
             />
           </div>
         )}
