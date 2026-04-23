@@ -105,15 +105,9 @@ app.use(helmet({
 }));
 app.use(express.json({ limit: '4mb' }));
 
-// Pre-auth throttles to blunt brute-force against /api/login and spray
-// attacks against /api/join (which creates a guest user per display name).
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'too many attempts' },
-});
+// /api/join throttle (spray attacks create guest users per display name).
+// /api/login uses the inline loginRateLimit defined below — that one only
+// penalizes FAILED attempts, which is what we want for password brute force.
 const joinLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -220,13 +214,49 @@ app.get('/api/status', requireBearer, (_req, res) => {
   });
 });
 
-app.post('/api/login', loginLimiter, (req, res) => {
+// ── Login rate limit ──────────────────────────────────────────────────────────
+// In-memory sliding window; 5 attempts / 15 minutes per IP. No persistence —
+// a machine restart wipes the counter, which is acceptable for a single-user
+// app. Matches the pattern in comms/black/server.js. We keep this inline
+// implementation (not express-rate-limit) because the fail-handler below
+// calls recordLoginAttempt() to bump the counter only on bad passwords —
+// successful logins don't spend from the quota.
+const LOGIN_RATE = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+function loginRateLimit(req, res, next) {
+  const key = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const rec = LOGIN_RATE.get(key);
+  if (rec && now - rec.firstAttemptAt > LOGIN_WINDOW_MS) LOGIN_RATE.delete(key);
+  const cur = LOGIN_RATE.get(key);
+  if (cur && cur.count >= LOGIN_MAX_ATTEMPTS) {
+    const retry = Math.ceil((cur.firstAttemptAt + LOGIN_WINDOW_MS - now) / 1000);
+    res.set('Retry-After', String(Math.max(retry, 1)));
+    return res.status(429).json({ error: 'too many attempts' });
+  }
+  if (LOGIN_RATE.size > 1000) {
+    for (const [k, v] of LOGIN_RATE) {
+      if (now - v.firstAttemptAt > LOGIN_WINDOW_MS) LOGIN_RATE.delete(k);
+    }
+  }
+  next();
+}
+function recordLoginAttempt(req) {
+  const key = req.ip || req.socket?.remoteAddress || 'unknown';
+  const cur = LOGIN_RATE.get(key);
+  if (cur) cur.count += 1;
+  else LOGIN_RATE.set(key, { count: 1, firstAttemptAt: Date.now() });
+}
+
+app.post('/api/login', loginRateLimit, (req, res) => {
   const { password } = req.body || {};
   if (!AUTH_ENABLED) return res.json({ ok: true });
   if (!password || typeof password !== 'string') return res.status(400).json({ error: 'password required' });
   const a = Buffer.from(password);
   const b = Buffer.from(AUTH_PASSWORD);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    recordLoginAttempt(req);
     return res.status(401).json({ error: 'bad password' });
   }
   const cookie = signOwnerCookie();
