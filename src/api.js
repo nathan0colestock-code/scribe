@@ -44,6 +44,17 @@ export const api = {
   glossPicker: (id) => request(`/api/documents/${id}/gloss/picker`),
   glossSearch: (id, q) => request(`/api/documents/${id}/gloss/search?q=${encodeURIComponent(q)}`),
 
+  // Black-hole archive suggestions (server-side proxy to black's semantic
+  // search). Returns { results: [{ file_id, name, drive_path, web_view_link,
+  // content, distance, ... }], query }. `k` caps how many hits to fetch;
+  // `fresh: true` busts the 5-minute per-doc cache.
+  blackSuggestions: (id, { k = 20, fresh = false } = {}) => {
+    const params = new URLSearchParams();
+    params.set('k', String(k));
+    if (fresh) params.set('fresh', '1');
+    return request(`/api/documents/${id}/black-suggestions?${params.toString()}`);
+  },
+
   listComments: (id) => request(`/api/documents/${id}/comments`),
   addComment: (id, body) => request(`/api/documents/${id}/comments`, { method: 'POST', body }),
   resolveThread: (id, threadId) => request(`/api/documents/${id}/comments/${threadId}/resolve`, { method: 'POST' }),

@@ -308,6 +308,7 @@ function OutlineStage({ doc, canEdit, saveMeta, outlineEditor, queryParts, onDro
           <CandidateCards
             documentId={doc.id}
             queryParts={queryParts}
+            insertEditor={canEdit ? outlineEditor : null}
           />
         </div>
       </div>
@@ -353,6 +354,7 @@ function DraftStage({ doc, canEdit, saveMeta, outlineEditor, draftEditor, showOu
             <CandidateCards
               documentId={doc.id}
               queryParts={queryParts}
+              insertEditor={canEdit ? draftEditor : null}
             />
           </div>
         )}
