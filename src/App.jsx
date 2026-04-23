@@ -61,11 +61,9 @@ function PasteImportDialog({ onClose, onCreated }) {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [createErr, setCreateErr] = useState('');
   async function submit() {
     if (busy || !text.trim()) return;
     setBusy(true);
-    setCreateErr('');
     try {
       const r = await api.createDocument({ title: title.trim() || 'Imported' });
       // Stash body until DocumentView mounts the draft editor — keeps the
@@ -74,7 +72,7 @@ function PasteImportDialog({ onClose, onCreated }) {
       sessionStorage.setItem(`scribe-seed-${r.document.id}`, text);
       onCreated(r.document.id);
     } catch (err) {
-      setCreateErr(`Couldn't create document: ${err.message}`);
+      alert(`Couldn't create document: ${err.message}`);
       setBusy(false);
     }
   }
@@ -96,7 +94,6 @@ function PasteImportDialog({ onClose, onCreated }) {
           <textarea value={text} onChange={e => setText(e.target.value)}
             placeholder="Paste here…" rows={14} />
         </label>
-        {createErr && <div className="error-inline" style={{ marginTop: 10 }}>{createErr}</div>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
           <button onClick={onClose}>Cancel</button>
           <button onClick={submit} className="primary" disabled={busy || !text.trim()}>
