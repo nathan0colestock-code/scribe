@@ -43,16 +43,18 @@ async function ensureCookie() {
   return loginInFlight;
 }
 
+// Outbound auth to gloss:
+// Primary: `Authorization: Bearer ${GLOSS_API_KEY}` (standardized across the suite).
+// Fallback: signed cookie from POST /api/login when GLOSS_API_KEY is absent,
+// for backwards compatibility with older deployments.
 async function request(path, { method = 'GET', body, retried = false } = {}) {
   const headers = { Accept: 'application/json' };
   if (body) headers['Content-Type'] = 'application/json';
-  if (GLOSS_API_KEY) headers['Authorization'] = `Bearer ${GLOSS_API_KEY}`;
-  if (GLOSS_PASSWORD) {
+  if (GLOSS_API_KEY) {
+    headers['Authorization'] = `Bearer ${GLOSS_API_KEY}`;
+  } else if (GLOSS_PASSWORD) {
     try { headers['Cookie'] = await ensureCookie(); }
-    catch (err) {
-      // If bearer is present, let the request go through — cookie is the fallback.
-      if (!GLOSS_API_KEY) throw err;
-    }
+    catch (err) { throw err; }
   }
   const res = await fetch(`${GLOSS_URL}${path}`, {
     method,
@@ -60,7 +62,8 @@ async function request(path, { method = 'GET', body, retried = false } = {}) {
     body: body ? JSON.stringify(body) : undefined,
     redirect: 'manual',
   });
-  if ((res.status === 401 || res.status === 302) && !retried && GLOSS_PASSWORD) {
+  // Only retry the cookie path — Bearer tokens don't expire mid-session.
+  if ((res.status === 401 || res.status === 302) && !retried && !GLOSS_API_KEY && GLOSS_PASSWORD) {
     cachedCookie = null;
     return request(path, { method, body, retried: true });
   }
