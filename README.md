@@ -49,10 +49,25 @@ All `/api/*` routes require Bearer auth with either the app's `API_KEY` or the s
 - `GET /api/health` — liveness, no auth
 - `GET /api/status` — suite-standard status envelope (see "Suite siblings" below)
 - `GET /api/documents` — list + search
-- `POST /api/documents` — create
+- `POST /api/documents` — create. Accepts optional `source: { kind, ... }` + `seed_body` so a server-side creator (e.g. Black's "Open in Scribe") can seed the initial draft.
+- `GET /api/documents/:id/pending-seed` — read-once drain of server-side seed text, used by the draft editor on first open.
+- `GET /api/documents/:id/black-suggestions` — Archive hits for the doc's topic (queries black on demand, cached 5 min).
 - `POST /api/documents/:id/send-to-comms` — hand off to comms for outbound drafting
 - `POST /api/documents/:id/materialize` — explode outline into a draft fragment
 - `GET /api/gloss-links/collections` — list linked gloss collections
+- `POST /api/readwise/sync` — pull updated highlights + books from Readwise (needs `READWISE_TOKEN`)
+- `GET /api/readwise/search?q=...` — fuzzy search across highlights + notes + book titles
+- `GET /api/readwise/books`, `GET /api/readwise/books/:id/highlights`, `GET /api/readwise/recent`, `GET /api/readwise/state`
+
+## Reference panel
+
+The sidebar on any document now has three sources feeding it:
+
+- **Gloss** — collections, people, scripture, books, artifacts matching the doc's topic
+- **Archive** — top hits from [black-hole](https://github.com/nathan0colestock-code/black) matching the doc's topic
+- **Readwise** — searchable library of highlights + source books pulled from your Readwise account
+
+Clicking any item inserts a citation-style blockquote at the cursor. Scribe routes the insertion to the right editor based on stage (Outline vs Draft).
 
 ---
 
