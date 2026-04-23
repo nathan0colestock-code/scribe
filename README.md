@@ -12,6 +12,13 @@ Scribe's superpower is **two-way linking with [gloss](https://github.com/nathan0
 - **Editor** — a block-based editor with drag handles, style guide, and gloss-linked side panel
 - **Collections** — documents grouped under the gloss collections they reference
 
+### Workflow features
+
+- **Three stages per doc** — outline → draft → review, each with its own Yjs-backed editor. Stage transitions auto-snapshot into `document_snapshots` so rewinding to "what did the outline look like when I started drafting" is free.
+- **Paste-import** — "Import text…" button next to "New document". Paste a reMarkable export (or any plain text), confirm the title, hit Create. The new doc opens in Draft with the text seeded in.
+- **Send to Comms** — on a review-stage doc, hand off the current plaintext to comms as an outbound Gmail draft. Comms regenerates the body in Nathan's voice using the recipient's comms + gloss history; nothing sends automatically.
+- **Corruption-safe collab** — Yjs updates are try/catch-wrapped, so a single bad buffer no longer bricks a doc permanently; the corrupt state is preserved as a `corruption_fallback` snapshot for offline inspection.
+
 ---
 
 ## Stack
@@ -43,6 +50,8 @@ All `/api/*` routes require Bearer auth with either the app's `API_KEY` or the s
 - `GET /api/status` — suite-standard status envelope (see "Suite siblings" below)
 - `GET /api/documents` — list + search
 - `POST /api/documents` — create
+- `POST /api/documents/:id/send-to-comms` — hand off to comms for outbound drafting
+- `POST /api/documents/:id/materialize` — explode outline into a draft fragment
 - `GET /api/gloss-links/collections` — list linked gloss collections
 
 ---
