@@ -1,19 +1,11 @@
 import express from 'express';
 import * as db from '../db.js';
 import { snapshotForStageTransition } from '../collab.js';
+import { ensureAccess as ensureAccessImpl } from './_access.js';
 
 export const router = express.Router();
 
-function ensureAccess(req, res, id) {
-  const doc = db.getDocument(id);
-  if (!doc) { res.status(404).json({ error: 'not found' }); return null; }
-  const isOwner = req.user?.is_owner && doc.owner_email === req.user.email;
-  const collabRole = req.user?.email ? db.getCollaboratorRole(id, req.user.email) : null;
-  const shareRole = req.user?.documentId === id ? req.user.role : null;
-  const role = isOwner ? 'editor' : (collabRole || shareRole);
-  if (!role) { res.status(403).json({ error: 'forbidden' }); return null; }
-  return { doc, role, isOwner };
-}
+const ensureAccess = (req, res, id) => ensureAccessImpl(req, res, { docId: id });
 
 router.get('/', (req, res) => {
   const email = req.user.email;
