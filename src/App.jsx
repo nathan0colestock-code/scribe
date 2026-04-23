@@ -53,10 +53,63 @@ function JoinModal({ token, onJoined }) {
   );
 }
 
+// Paste-import modal — primary use case is reMarkable "email-to-self" exports:
+// copy-paste the plain text into the textarea, confirm the title, hit Create.
+// The new doc gets the text seeded into its draft editor on first open via
+// sessionStorage hand-off (see DocumentView).
+function PasteImportDialog({ onClose, onCreated }) {
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit() {
+    if (busy || !text.trim()) return;
+    setBusy(true);
+    try {
+      const r = await api.createDocument({ title: title.trim() || 'Imported' });
+      // Stash body until DocumentView mounts the draft editor — keeps the
+      // API surface unchanged (no body field on POST /api/documents) and
+      // avoids server-side Yjs manipulation.
+      sessionStorage.setItem(`scribe-seed-${r.document.id}`, text);
+      onCreated(r.document.id);
+    } catch (err) {
+      alert(`Couldn't create document: ${err.message}`);
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="import-dialog" onClick={onClose}>
+      <div className="panel" onClick={e => e.stopPropagation()}>
+        <h2>Import as new document</h2>
+        <p style={{ color: 'var(--ink-muted)', marginTop: 0 }}>
+          Paste plain text — e.g. a reMarkable export — to seed a new draft.
+          The document opens at the Draft stage with the text inserted.
+        </p>
+        <label style={{ display: 'block', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginBottom: 4 }}>Title</div>
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="Imported" autoFocus />
+        </label>
+        <label style={{ display: 'block' }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-muted)', marginBottom: 4 }}>Text</div>
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            placeholder="Paste here…" rows={14} />
+        </label>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
+          <button onClick={onClose}>Cancel</button>
+          <button onClick={submit} className="primary" disabled={busy || !text.trim()}>
+            {busy ? 'Creating…' : 'Create document'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DocList({ me }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showStyleGuide, setShowStyleGuide] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const nav = useNavigate();
   useEffect(() => {
     api.listDocuments().then(r => { setDocs(r.documents); setLoading(false); });
@@ -71,6 +124,7 @@ function DocList({ me }) {
         <h1 style={{ flex: 1, margin: '0 0 0 0' }}>Scribe</h1>
         <span className="chip">{me.display_name}</span>
         {me.is_owner && <button onClick={() => setShowStyleGuide(true)}>Style guide</button>}
+        {me.is_owner && <button onClick={() => setShowImport(true)}>Import text…</button>}
         {me.is_owner && <button onClick={create} className="primary">New document</button>}
       </div>
       <p style={{ color: 'var(--ink-muted)', marginBottom: 24 }}>Writing, drawn from your notebook.</p>
@@ -87,6 +141,9 @@ function DocList({ me }) {
       ))}
       {showStyleGuide && (
         <StyleGuideEditor onClose={() => setShowStyleGuide(false)} />
+      )}
+      {showImport && (
+        <PasteImportDialog onClose={() => setShowImport(false)} onCreated={(id) => nav(`/d/${id}?stage=draft`)} />
       )}
     </div>
   );

@@ -415,13 +415,13 @@ a { color: var(--accent); }
 }
 
 /* ---- Dialogs ---- */
-.linker-dialog, .share-dialog, .join-dialog {
+.linker-dialog, .share-dialog, .join-dialog, .import-dialog {
   position: fixed; inset: 0;
   background: rgba(30, 25, 15, 0.45);
   display: grid; place-items: center;
   z-index: 50;
 }
-.linker-dialog .panel, .share-dialog .panel, .join-dialog .panel {
+.linker-dialog .panel, .share-dialog .panel, .join-dialog .panel, .import-dialog .panel {
   background: var(--card);
   border: 1px solid var(--rule);
   border-radius: 4px;
@@ -430,11 +430,23 @@ a { color: var(--accent); }
   max-height: 80vh; overflow-y: auto;
   box-shadow: 0 20px 50px rgba(0,0,0,0.3);
 }
-.linker-dialog h3, .share-dialog h3, .join-dialog h3 {
+.import-dialog .panel { width: min(720px, 92vw); }
+.linker-dialog h3, .share-dialog h3, .join-dialog h3, .import-dialog h2 {
   margin: 0 0 12px;
   font-family: ui-serif, Georgia, serif;
   font-weight: 600;
 }
+.import-dialog textarea,
+.import-dialog input[type="text"] {
+  width: 100%;
+  padding: 8px 10px; font-size: 14px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+}
+.import-dialog textarea { min-height: 260px; resize: vertical; }
 .linker-dialog .section { margin-bottom: 16px; }
 .linker-dialog .item {
   padding: 5px 8px; border-radius: 3px;

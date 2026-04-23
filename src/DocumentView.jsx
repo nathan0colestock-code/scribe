@@ -39,6 +39,27 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
   const outlineEditor = useCollabEditor({ docId: doc.id, me, role, collabToken, kind: 'outline' });
   const draftEditor   = useCollabEditor({ docId: doc.id, me, role, collabToken, kind: 'draft' });
 
+  // Paste-import seeding: App.jsx stashes pasted text in sessionStorage under
+  // scribe-seed-<docId> before navigating here. On first readiness of the
+  // draft editor, flush it in, clear the stash, and hop to the Draft stage.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (!draftEditor.editor || role !== 'editor') return;
+    const key = `scribe-seed-${doc.id}`;
+    const text = sessionStorage.getItem(key);
+    if (!text) return;
+    // Insert as paragraph-separated blocks — plain-text exports use blank
+    // lines between paragraphs, which we preserve as TipTap paragraphs.
+    const blocks = text.split(/\n{2,}/).filter(s => s.trim().length);
+    draftEditor.editor.chain().focus('end').insertContent(
+      blocks.map(b => ({ type: 'paragraph', content: [{ type: 'text', text: b }] })),
+    ).run();
+    sessionStorage.removeItem(key);
+    seededRef.current = true;
+    setStage('draft');
+  }, [draftEditor.editor, role, doc.id]);
+
   const saveTimer = useRef(null);
   function saveMeta(patch) {
     setDoc(d => ({ ...d, ...patch }));
