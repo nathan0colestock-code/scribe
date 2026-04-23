@@ -59,4 +59,10 @@ export const api = {
 
   proofread: (document_id, text) => request('/api/ai/proofread', { method: 'POST', body: { document_id, text } }),
   styleCheck: (document_id, text) => request('/api/ai/style-check', { method: 'POST', body: { document_id, text } }),
+
+  // Outline → Draft: materialize outline + cards into Tiptap JSON, caller
+  // merges into the draft editor.
+  materializeOutline: (id) => request(`/api/documents/${id}/materialize`, { method: 'POST' }),
+  // Review → Comms: save the doc body as an outbound Gmail draft via comms.
+  sendToComms: (id, body) => request(`/api/documents/${id}/send-to-comms`, { method: 'POST', body }),
 };

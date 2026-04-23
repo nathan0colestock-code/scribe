@@ -21,6 +21,7 @@ import { router as glossRouter } from './routes/gloss-links.js';
 import { router as aiRouter } from './routes/ai.js';
 import { router as styleRouter } from './routes/style.js';
 import { router as outlineRouter } from './routes/outline.js';
+import { router as commsRouter } from './routes/comms.js';
 
 // ---- Env loader (simple KEY=VALUE .env, no dotenv dep) ----
 try {
@@ -265,6 +266,7 @@ app.use('/api/documents', commentsRouter);
 app.use('/api/documents', suggestionsRouter);
 app.use('/api/documents', glossRouter);
 app.use('/api/documents', outlineRouter);
+app.use('/api/documents', commsRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/style-guides', styleRouter);
 

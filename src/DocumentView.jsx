@@ -111,6 +111,44 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
     } catch (e) { setAiStatus(`Error: ${e.message}`); }
   }
 
+  // Outline → Draft: hit /materialize, insert the returned Tiptap fragment
+  // into the draft editor (replacing its current content), then swap stages.
+  async function materializeOutline() {
+    const editor = draftEditor.editor;
+    if (!editor) return;
+    setAiStatus('Materializing outline…');
+    try {
+      const r = await api.materializeOutline(doc.id);
+      const frag = r.fragment;
+      if (!frag || !Array.isArray(frag.content)) throw new Error('no fragment returned');
+      editor.chain().focus().setContent(frag, true).run();
+      setStage('draft');
+      setAiStatus('Materialized — review & continue in Draft');
+    } catch (e) { setAiStatus(`Materialize failed: ${e.message}`); }
+  }
+
+  // Review → Comms handoff. Minimal UI — prompt for a recipient name, POST
+  // to /send-to-comms with the current draft plaintext. Shows the resulting
+  // status + (where available) the Gmail draft URL in the toolbar chip.
+  async function sendToComms() {
+    const editor = draftEditor.editor;
+    if (!editor) return;
+    const name = prompt('Send to whom? (comms contact display name)');
+    if (!name || !name.trim()) return;
+    const text = docToPlainText(editor.state.doc).trim();
+    if (!text) { setAiStatus('Document is empty — nothing to send.'); return; }
+    setAiStatus(`Sending to ${name.trim()} via comms…`);
+    try {
+      const r = await api.sendToComms(doc.id, {
+        contactName: name.trim(),
+        bodyText: text,
+        medium: 'email', style: 'warm',
+      });
+      if (r.draft_id) setAiStatus(`Draft saved to Gmail (${r.draft_id.slice(0, 8)}…) for ${name.trim()}`);
+      else setAiStatus(`Draft body returned for ${name.trim()} — check comms logs`);
+    } catch (e) { setAiStatus(`Send failed: ${e.message}`); }
+  }
+
   function addCommentOnSelection() {
     const editor = draftEditor.editor;
     if (!editor) return;
@@ -161,9 +199,11 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
         <span className="chip">{role}</span>
         {canEdit && <button onClick={() => setShowLinker(true)}>Link Gloss</button>}
         {isOwner && <button onClick={() => setShowShare(true)}>Share</button>}
+        {canEdit && stage === 'outline' && <button onClick={materializeOutline} className="primary" title="Turn outline + notecards into a draft">Materialize → Draft</button>}
         {canEdit && stage === 'draft' && <button onClick={runProofread} className="primary">Proofread</button>}
         {canEdit && stage === 'draft' && <button onClick={runStyleCheck}>Check style</button>}
         {canComment && stage === 'review' && <button onClick={addCommentOnSelection}>Comment</button>}
+        {canEdit && stage === 'review' && <button onClick={sendToComms} title="Save this doc to Gmail Drafts via comms">Send to Comms as draft</button>}
         {aiStatus && <span className="chip">{aiStatus}</span>}
       </div>
 
