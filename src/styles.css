@@ -18,6 +18,13 @@
   --proofread: #5b84b3;
   --style-hint: #c18a3b;
   color-scheme: light;
+
+  /* Suite-shared tokens (vocabulary aligned with comms/gloss/black/maestro).
+   * Scribe keeps its serif body (ui-serif / Georgia) as an intentional
+   * writerly choice, so --suite-font-body is declared but not applied here. */
+  --suite-focus: #6b9bd1;
+  --suite-touch-min: 44px;
+  --suite-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -69,6 +76,11 @@ button.link-btn { background: transparent; border: none; color: var(--ink-muted)
 button.link-btn:hover { color: var(--ink); background: transparent; }
 button.x { padding: 0 6px; font-size: 12px; color: var(--ink-muted); background: transparent; border: none; }
 button.x:hover { color: var(--danger); background: transparent; }
+
+:focus-visible {
+  outline: 2px solid var(--suite-focus);
+  outline-offset: 2px;
+}
 
 input, textarea, select {
   font: inherit;
@@ -641,6 +653,14 @@ a.notecard-source:hover { text-decoration: underline; }
   .toolbar, .topbar {
     flex-wrap: wrap;
     gap: 6px;
+  }
+  /* Suite touch-target minimum on primary button + form inputs.
+   * Secondary/compact buttons (link-btn, .x, etc.) keep their existing size. */
+  button.primary, .primary {
+    min-height: var(--suite-touch-min);
+  }
+  input, textarea, select {
+    min-height: var(--suite-touch-min);
   }
   button, .btn {
     min-height: 36px;
