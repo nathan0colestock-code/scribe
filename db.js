@@ -16,9 +16,11 @@ db.pragma('foreign_keys = ON');
 
 const migrations = fs.readFileSync(path.join(__dirname, 'migrations', '001_init.sql'), 'utf8');
 db.exec(migrations);
-const migration2 = fs.readFileSync(path.join(__dirname, 'migrations', '002_outline_doc.sql'), 'utf8');
-for (const stmt of migration2.split(';').map(s => s.trim()).filter(Boolean)) {
-  try { db.exec(stmt + ';'); } catch (e) { if (!e.message.includes('duplicate column')) throw e; }
+for (const mig of ['002_outline_doc.sql', '003_gloss_artifact.sql']) {
+  const sql = fs.readFileSync(path.join(__dirname, 'migrations', mig), 'utf8');
+  for (const stmt of sql.split(';').map(s => s.trim()).filter(Boolean)) {
+    try { db.exec(stmt + ';'); } catch (e) { if (!e.message.includes('duplicate column')) throw e; }
+  }
 }
 
 const now = () => new Date().toISOString();
@@ -69,6 +71,10 @@ export function updateDocumentMeta(id, { title, description, main_point, style_g
 
 export function deleteDocument(id) {
   db.prepare(`DELETE FROM documents WHERE id = ?`).run(id);
+}
+
+export function setDocumentGlossArtifact(id, gloss_artifact_id) {
+  db.prepare(`UPDATE documents SET gloss_artifact_id = ? WHERE id = ?`).run(gloss_artifact_id, id);
 }
 
 export function setYjsState(id, buf, kind = 'draft') {

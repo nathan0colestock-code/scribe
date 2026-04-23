@@ -166,6 +166,41 @@ export async function hydrateAllLinksForDocument(document_id) {
   return { links: links.length, pages: totalPages, with_text: totalText };
 }
 
+const SCRIBE_URL = (process.env.SCRIBE_URL || 'https://scribe-nc.fly.dev').replace(/\/$/, '');
+
+// Create or update a Gloss artifact that represents this Scribe document.
+// Call this when a new collection is linked so the collection detail in Gloss
+// shows the Scribe doc as a connected artifact.
+export async function ensureGlossArtifact(document, collection_id) {
+  if (!document) return null;
+  const external_url = `${SCRIBE_URL}/d/${document.id}`;
+  try {
+    let artifactId = document.gloss_artifact_id;
+    if (!artifactId) {
+      const a = await request('/api/artifacts', {
+        method: 'POST',
+        body: {
+          title: document.title || 'Untitled (Scribe)',
+          external_url,
+          collection_ids: collection_id ? [collection_id] : [],
+          notes: document.description || '',
+        },
+      });
+      artifactId = a.id;
+      db.setDocumentGlossArtifact(document.id, artifactId);
+    } else if (collection_id) {
+      await request(`/api/artifacts/${encodeURIComponent(artifactId)}/links`, {
+        method: 'POST',
+        body: { to_type: 'collection', to_id: collection_id },
+      }).catch(e => console.warn('[gloss] artifact link failed:', e.message));
+    }
+    return artifactId;
+  } catch (err) {
+    console.warn('[gloss] ensureGlossArtifact failed:', err.message);
+    return null;
+  }
+}
+
 export function buildSearchQuery(doc) {
   return [doc?.description || '', doc?.main_point || '', doc?.title || ''].join(' ');
 }

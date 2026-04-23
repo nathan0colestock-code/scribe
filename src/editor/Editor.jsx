@@ -12,6 +12,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import { CommentMark, SuggestInsert, SuggestDelete, GlossAttribution } from './extensions.js';
 import { ProofreadPlugin, setProofreadSuggestions, clearProofread, getProofreadState, docToPlainText } from './proofread.js';
 import { Notecard } from './extensions/notecard.jsx';
+import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
 
 const ProofreadExtension = Extension.create({
   name: 'proofread',
@@ -76,6 +77,7 @@ export function useCollabEditor({ docId, me, role, collabToken, kind = 'draft', 
         : 'Write your draft here. Drag from the outline on the left.') }),
       Link.configure({ openOnClick: true }),
       Notecard,
+      GlobalDragHandle.configure({ dragHandleWidth: 20 }),
       Collaboration.configure({ document: ydoc }),
       CollaborationCursor.configure({
         provider,

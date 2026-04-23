@@ -31,9 +31,14 @@ router.post('/:id/gloss/links', async (req, res) => {
   if (!gloss_id || !label) return res.status(400).json({ error: 'gloss_id and label required' });
   const link = db.addGlossLink(a.doc.id, { kind, gloss_id, label });
 
-  // Fire-and-forget hydration so the UI can move on. Progress is reflected by stats endpoint.
+  // Fire-and-forget: hydrate transcripts and register back-link in Gloss.
   gloss.hydrateLink({ document_id: a.doc.id, kind, gloss_id, label })
     .catch(err => console.warn('[gloss] hydrate failed:', err.message));
+
+  if (kind === 'collection') {
+    gloss.ensureGlossArtifact(a.doc, gloss_id)
+      .catch(err => console.warn('[gloss] artifact sync failed:', err.message));
+  }
 
   res.json({ link });
 });

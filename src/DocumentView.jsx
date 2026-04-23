@@ -8,7 +8,6 @@ import { CommentPanel } from './comments/CommentPanel.jsx';
 import { SuggestionPanel } from './suggestions/SuggestionPanel.jsx';
 import { LinkerDialog } from './gloss/LinkerDialog.jsx';
 import { ShareDialog } from './share/ShareDialog.jsx';
-import { StyleGuideEditor } from './settings/StyleGuideEditor.jsx';
 import { nanoid } from './editor/nanoid-browser.js';
 
 const STAGES = [
@@ -25,7 +24,6 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
   const [focus, setFocus] = useState(false);
   const [showLinker, setShowLinker] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [showStyleGuide, setShowStyleGuide] = useState(false);
   const [aiStatus, setAiStatus] = useState('');
   const [collabToken, setCollabToken] = useState(null);
 
@@ -142,7 +140,6 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
         <span className="chip">{role}</span>
         {canEdit && <button onClick={() => setShowLinker(true)}>Link Gloss</button>}
         {isOwner && <button onClick={() => setShowShare(true)}>Share</button>}
-        {isOwner && <button onClick={() => setShowStyleGuide(true)}>Style guide</button>}
         {canEdit && stage === 'draft' && <button onClick={runProofread} className="primary">Proofread</button>}
         {canEdit && stage === 'draft' && <button onClick={runStyleCheck}>Check style</button>}
         {canComment && stage === 'review' && <button onClick={addCommentOnSelection}>Comment</button>}
@@ -183,13 +180,6 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
 
       {showLinker && <LinkerDialog documentId={doc.id} onClose={() => setShowLinker(false)} />}
       {showShare && <ShareDialog documentId={doc.id} onClose={() => setShowShare(false)} />}
-      {showStyleGuide && (
-        <StyleGuideEditor
-          onClose={() => setShowStyleGuide(false)}
-          activeId={doc.style_guide_id}
-          onActiveChange={(id) => saveMeta({ style_guide_id: id })}
-        />
-      )}
       <ProofreadPopover editor={draftEditor.editor} getSuggestions={() => getProofreadState(draftEditor.editor)?.suggestions || []} />
     </div>
   );

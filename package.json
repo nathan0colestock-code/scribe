@@ -19,6 +19,7 @@
     "cookie": "^1.0.1",
     "express": "^4.21.1",
     "nanoid": "^5.0.7",
+    "tiptap-extension-global-drag-handle": "^0.1.18",
     "ws": "^8.18.0",
     "yjs": "^13.6.20"
   },

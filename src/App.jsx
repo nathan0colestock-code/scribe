@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { api } from './api.js';
 import { DocumentView } from './DocumentView.jsx';
+import { StyleGuideEditor } from './settings/StyleGuideEditor.jsx';
 
 function Login({ onLoggedIn }) {
   const [pw, setPw] = useState('');
@@ -52,9 +53,10 @@ function JoinModal({ token, onJoined }) {
   );
 }
 
-function DocList({ me, onRefresh }) {
+function DocList({ me }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showStyleGuide, setShowStyleGuide] = useState(false);
   const nav = useNavigate();
   useEffect(() => {
     api.listDocuments().then(r => { setDocs(r.documents); setLoading(false); });
@@ -65,23 +67,27 @@ function DocList({ me, onRefresh }) {
   }
   return (
     <div className="doclist">
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-        <h1 style={{ flex: 1 }}>Scribe</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <h1 style={{ flex: 1, margin: '0 0 0 0' }}>Scribe</h1>
         <span className="chip">{me.display_name}</span>
+        {me.is_owner && <button onClick={() => setShowStyleGuide(true)}>Style guide</button>}
         {me.is_owner && <button onClick={create} className="primary">New document</button>}
       </div>
-      <p style={{ color: 'var(--fg-muted)' }}>Writing, drawn from your notebook.</p>
+      <p style={{ color: 'var(--ink-muted)', marginBottom: 24 }}>Writing, drawn from your notebook.</p>
       {loading ? <div>Loading…</div> : docs.length === 0 ? (
         <div className="card">No documents yet. Start a new one.</div>
       ) : docs.map(d => (
         <Link to={`/d/${d.id}`} key={d.id} style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="card">
             <div style={{ fontWeight: 600 }}>{d.title || 'Untitled'}</div>
-            {d.description && <div style={{ color: 'var(--fg-muted)', fontSize: 13 }}>{d.description}</div>}
+            {d.description && <div style={{ color: 'var(--ink-muted)', fontSize: 13 }}>{d.description}</div>}
             <div className="meta">{new Date(d.updated_at).toLocaleString()} · {d.role}</div>
           </div>
         </Link>
       ))}
+      {showStyleGuide && (
+        <StyleGuideEditor onClose={() => setShowStyleGuide(false)} />
+      )}
     </div>
   );
 }
