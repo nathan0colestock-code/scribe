@@ -88,4 +88,14 @@ export const api = {
   readwiseSearch: (q, limit = 30) => request(`/api/readwise/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   readwiseBookHighlights: (id, { limit = 100, offset = 0 } = {}) =>
     request(`/api/readwise/books/${id}/highlights?limit=${limit}&offset=${offset}`),
+
+  // Document-contextual Readwise suggestions — highlights semantically matched
+  // to the doc's topic signal (description + main_point + title). Returns
+  // { results: [...], query }. `fresh: true` busts the 5-minute per-doc cache.
+  readwiseSuggestions: (docId, { k = 20, fresh = false } = {}) => {
+    const params = new URLSearchParams();
+    params.set('k', String(k));
+    if (fresh) params.set('fresh', '1');
+    return request(`/api/documents/${docId}/readwise-suggestions?${params.toString()}`);
+  },
 };
