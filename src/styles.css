@@ -603,3 +603,34 @@ a.notecard-source:hover { text-decoration: underline; }
   padding: 1px 6px;
   border-radius: 999px;
 }
+
+/* ---- Responsive: narrow-viewport adjustments (phones, ~375px) ---- */
+/* Scribe's desktop layout assumes a side gutter + sidebar. On small screens
+   we collapse paddings and let the editor stretch edge-to-edge so there's
+   enough room for actual text. */
+@media (max-width: 640px) {
+  .doclist {
+    margin: 20px auto;
+    padding: 0 12px;
+  }
+  .doc-shell, .editor-shell {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .sidebar, aside.sidebar {
+    /* Stack the sidebar below the editor on small screens rather than
+       stealing half the viewport. Individual views override as needed. */
+    width: 100% !important;
+    max-width: 100% !important;
+    position: static !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border, #e6e3dc);
+  }
+  .toolbar, .topbar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  button, .btn {
+    min-height: 36px;
+  }
+}

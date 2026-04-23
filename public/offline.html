@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scribe — Offline</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#7c3aed" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: #faf8f4;
+        color: #1c1b22;
+      }
+      main {
+        max-width: 32rem;
+        margin: 0 auto;
+        padding: 4rem 1.5rem 2rem;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.75rem;
+        margin: 0 0 0.5rem;
+      }
+      p { line-height: 1.55; color: #4a4956; }
+      button {
+        margin-top: 1.5rem;
+        font: inherit;
+        padding: 0.6rem 1.1rem;
+        border: 1px solid #7c3aed;
+        border-radius: 6px;
+        background: #7c3aed;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover { background: #6527cc; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You're offline</h1>
+      <p>Scribe needs a network connection to load documents and sync with
+        your collaborators. Once you're back online, reload to pick up where
+        you left off.</p>
+      <button onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>
