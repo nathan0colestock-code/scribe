@@ -1,18 +1,10 @@
 import express from 'express';
 import * as db from '../db.js';
+import { ensureAccess } from './_access.js';
 
 export const router = express.Router();
 
-function access(req, res) {
-  const doc = db.getDocument(req.params.id);
-  if (!doc) { res.status(404).json({ error: 'not found' }); return null; }
-  const isOwner = req.user?.is_owner && doc.owner_email === req.user.email;
-  const role = isOwner ? 'editor'
-    : (req.user?.email ? db.getCollaboratorRole(doc.id, req.user.email) : null)
-    || (req.user?.documentId === doc.id ? req.user.role : null);
-  if (!role) { res.status(403).json({ error: 'forbidden' }); return null; }
-  return { doc, role, isOwner };
-}
+const access = (req, res) => ensureAccess(req, res);
 
 router.get('/:id/outline', (req, res) => {
   const a = access(req, res); if (!a) return;
