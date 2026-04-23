@@ -65,4 +65,13 @@ export const api = {
   materializeOutline: (id) => request(`/api/documents/${id}/materialize`, { method: 'POST' }),
   // Review → Comms: save the doc body as an outbound Gmail draft via comms.
   sendToComms: (id, body) => request(`/api/documents/${id}/send-to-comms`, { method: 'POST', body }),
+
+  // Readwise integration — local mirror of books + highlights.
+  readwiseState:  () => request('/api/readwise/state'),
+  readwiseSync:   () => request('/api/readwise/sync', { method: 'POST' }),
+  readwiseBooks:  () => request('/api/readwise/books'),
+  readwiseRecent: (limit = 20) => request(`/api/readwise/recent?limit=${limit}`),
+  readwiseSearch: (q, limit = 30) => request(`/api/readwise/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  readwiseBookHighlights: (id, { limit = 100, offset = 0 } = {}) =>
+    request(`/api/readwise/books/${id}/highlights?limit=${limit}&offset=${offset}`),
 };

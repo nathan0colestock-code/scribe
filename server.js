@@ -24,6 +24,8 @@ import { router as aiRouter } from './routes/ai.js';
 import { router as styleRouter } from './routes/style.js';
 import { router as outlineRouter } from './routes/outline.js';
 import { router as commsRouter } from './routes/comms.js';
+import { router as readwiseRouter, runSync as runReadwiseSync } from './routes/readwise.js';
+import * as readwiseClient from './readwise.js';
 
 // ---- Env loader (simple KEY=VALUE .env, no dotenv dep) ----
 try {
@@ -301,6 +303,7 @@ app.use('/api/documents', outlineRouter);
 app.use('/api/documents', commsRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/style-guides', styleRouter);
+app.use('/api/readwise', readwiseRouter);
 
 // ---- Static (prod) ----
 if (IS_PROD) {
@@ -330,3 +333,27 @@ server.on('upgrade', (request, socket, head) => {
 server.listen(PORT, () => {
   console.log(`[scribe] http + ws on :${PORT} (env=${IS_PROD ? 'prod' : 'dev'}, auth=${AUTH_ENABLED ? 'on' : 'off'})`);
 });
+
+// Scheduled Readwise sync: prod-only, every 6h, gated on READWISE_TOKEN.
+// Dev intentionally doesn't auto-sync — easier to iterate on the API shape
+// without hammering the Readwise backend.
+if (IS_PROD && process.env.READWISE_TOKEN) {
+  const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+  const READWISE_SYNC_KEY = 'readwise_last_sync';
+  const kickoff = async () => {
+    try {
+      const since = db.getSyncState(READWISE_SYNC_KEY) || null;
+      const r = await runReadwiseSync({
+        token: process.env.READWISE_TOKEN,
+        since,
+        clients: readwiseClient,
+      });
+      console.log(`[readwise] sync ok: ${r.books_upserted} books, ${r.highlights_upserted} highlights in ${r.elapsed_ms}ms`);
+    } catch (err) {
+      console.warn(`[readwise] scheduled sync failed: ${err.message}`);
+    }
+  };
+  // First run shortly after boot, then every 6h.
+  setTimeout(kickoff, 30_000);
+  setInterval(kickoff, SIX_HOURS_MS);
+}
