@@ -1,11 +1,7 @@
 // Readwise reference panel — lives alongside CandidateCards in the right
-// side-panel. When a `documentId` is provided, the default view shows
-// highlights matched to the document's topic signal via
-// GET /api/documents/:id/readwise-suggestions. Without a documentId, it
-// falls back to globally recent highlights (original behaviour).
-//
-// The manual search box always does a full LIKE search regardless of
-// whether a documentId is present, so it works the same way in both modes.
+// side-panel. Surfaces recent highlights, a LIKE search, and a "Sync now"
+// button wired to POST /api/readwise/sync. Clicking a highlight inserts a
+// blockquote into the draft editor at the current cursor.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
@@ -19,6 +15,9 @@ function useDebounce(value, delay) {
   return v;
 }
 
+// Insert a Markdown-style blockquote as TipTap blockquote nodes, then a
+// paragraph citation underneath. Falls back silently if the editor is not
+// ready (e.g. readonly share session).
 function insertHighlightAsBlockquote(editor, h) {
   if (!editor) return;
   const author = h.book?.author ? h.book.author : '';
@@ -37,15 +36,13 @@ function insertHighlightAsBlockquote(editor, h) {
   editor.chain().focus().insertContent(content).run();
 }
 
-export function ReadwisePanel({ editor, documentId }) {
+export function ReadwisePanel({ editor }) {
   const [query, setQuery] = useState('');
   const [recent, setRecent] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
   const [results, setResults] = useState([]);
   const [state, setState] = useState({ last_sync: null, token_present: false });
   const [status, setStatus] = useState('');
   const [syncing, setSyncing] = useState(false);
-  const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
   const debounced = useDebounce(query, 350);
 
   async function loadRecent() {
@@ -54,23 +51,7 @@ export function ReadwisePanel({ editor, documentId }) {
   async function loadState() {
     try { const s = await api.readwiseState(); setState(s); } catch {}
   }
-  async function loadSuggestions(fresh = false) {
-    if (!documentId) return;
-    try {
-      const r = await api.readwiseSuggestions(documentId, { k: 20, fresh });
-      setSuggestions(r.results || []);
-      setSuggestionsLoaded(true);
-    } catch {}
-  }
-
-  useEffect(() => {
-    loadState();
-    if (documentId) {
-      loadSuggestions(false);
-    } else {
-      loadRecent();
-    }
-  }, [documentId]);
+  useEffect(() => { loadRecent(); loadState(); }, []);
 
   useEffect(() => {
     if (!debounced.trim()) { setResults([]); return; }
@@ -87,10 +68,7 @@ export function ReadwisePanel({ editor, documentId }) {
     try {
       const r = await api.readwiseSync();
       setStatus(`Synced: ${r.books_upserted} books, ${r.highlights_upserted} highlights (${r.elapsed_ms} ms)`);
-      await Promise.all([
-        documentId ? loadSuggestions(true) : loadRecent(),
-        loadState(),
-      ]);
+      await Promise.all([loadRecent(), loadState()]);
     } catch (e) {
       setStatus(`Sync failed: ${e.message}`);
     } finally {
@@ -98,37 +76,12 @@ export function ReadwisePanel({ editor, documentId }) {
     }
   }
 
-  // Priority: manual search > doc-contextual suggestions > recent
-  const showing = debounced.trim()
-    ? results
-    : documentId
-      ? suggestions
-      : recent;
-
+  const showing = debounced.trim() ? results : recent;
   const grouped = useMemo(() => groupByBook(showing), [showing]);
-
-  const emptyMessage = debounced.trim()
-    ? 'No matching highlights.'
-    : state.token_present
-      ? documentId && suggestionsLoaded && suggestions.length === 0
-        ? 'No highlights match this document\'s topic yet — try "Sync now" or search manually.'
-        : 'No highlights yet — click "Sync now" to pull from Readwise.'
-      : 'Set READWISE_TOKEN in prod to enable this panel.';
 
   return (
     <div className="cards readwise-panel">
-      <div className="readwise-header">
-        <h3>Readwise</h3>
-        {documentId && suggestionsLoaded && !debounced.trim() && (
-          <button
-            className="archive-refresh"
-            onClick={() => loadSuggestions(true)}
-            title="Re-fetch suggestions for this document"
-          >
-            ↻
-          </button>
-        )}
-      </div>
+      <h3>Readwise</h3>
       <div className="stats">
         {state.last_sync
           ? <>Last sync {new Date(state.last_sync).toLocaleString()}</>
@@ -152,7 +105,13 @@ export function ReadwisePanel({ editor, documentId }) {
       {status && <div className="stats">{status}</div>}
 
       {showing.length === 0 ? (
-        <div className="empty">{emptyMessage}</div>
+        <div className="empty">
+          {debounced.trim()
+            ? 'No matching highlights.'
+            : state.token_present
+              ? 'No highlights yet — click "Sync now" to pull from Readwise.'
+              : 'Set READWISE_TOKEN in prod to enable this panel.'}
+        </div>
       ) : (
         Object.entries(grouped).map(([bookKey, group]) => (
           <div key={bookKey} className="readwise-group">

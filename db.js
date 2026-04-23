@@ -548,44 +548,6 @@ export function searchReadwiseHighlights(q, limit = 20) {
   `).all(like, like, like, limit);
 }
 
-// Topic-based highlight search for the document reference panel.
-//
-// Splits `q` into meaningful keywords (≥4 chars, max 8) and ORs them across
-// highlight text, note, and book title. Rows are scored by match count —
-// text matches weight ×2, note/title weight ×1 — so more-relevant highlights
-// float to the top. Falls back to recency when scores tie.
-export function searchReadwiseHighlightsByTopics(q, limit = 20) {
-  if (!q || !q.trim()) return [];
-  const keywords = [...new Set(
-    q.trim().toLowerCase().split(/\s+/).filter(w => w.length >= 4),
-  )].slice(0, 8);
-  if (keywords.length === 0) return [];
-
-  const likes = keywords.map(k => `%${k.replace(/[%_]/g, s => '\\' + s)}%`);
-
-  const whereFrags = likes.map(
-    () => `(h.text LIKE ? ESCAPE '\\' OR h.note LIKE ? ESCAPE '\\' OR b.title LIKE ? ESCAPE '\\')`,
-  );
-  const scoreFrags = likes.map(
-    () => `(CASE WHEN h.text LIKE ? ESCAPE '\\' THEN 2 ELSE 0 END + CASE WHEN h.note LIKE ? ESCAPE '\\' THEN 1 ELSE 0 END + CASE WHEN b.title LIKE ? ESCAPE '\\' THEN 1 ELSE 0 END)`,
-  );
-
-  const whereParams = likes.flatMap(l => [l, l, l]);
-  const scoreParams = likes.flatMap(l => [l, l, l]);
-
-  return db.prepare(`
-    SELECT h.id AS highlight_id,
-           h.text, h.note, h.location, h.url, h.highlighted_at,
-           b.id AS book_id, b.title AS book_title, b.author AS book_author, b.category AS book_category,
-           (${scoreFrags.join(' + ')}) AS match_score
-    FROM readwise_highlights h
-    JOIN readwise_books b ON b.id = h.book_id
-    WHERE ${whereFrags.join(' OR ')}
-    ORDER BY match_score DESC, COALESCE(h.highlighted_at, h.updated) DESC
-    LIMIT ?
-  `).all(...whereParams, ...scoreParams, limit);
-}
-
 export function getSyncState(key) {
   const row = db.prepare(`SELECT value FROM sync_state WHERE key = ?`).get(key);
   return row?.value || null;

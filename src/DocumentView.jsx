@@ -4,7 +4,6 @@ import { api } from './api.js';
 import { useCollabEditor, EditorPane, cardToNotecardNode, setProofreadSuggestions, docToPlainText, getProofreadState } from './editor/Editor.jsx';
 import { ProofreadPopover } from './editor/ProofreadPopover.jsx';
 import { CandidateCards } from './sidebar/CandidateCards.jsx';
-import { ArchiveSuggestions } from './sidebar/ArchiveSuggestions.jsx';
 import { ReadwisePanel } from './sidebar/ReadwisePanel.jsx';
 import { CommentPanel } from './comments/CommentPanel.jsx';
 import { SuggestionPanel } from './suggestions/SuggestionPanel.jsx';
@@ -281,17 +280,13 @@ function ReferencePanel({ documentId, queryParts, insertEditor }) {
     <div className="reference-panel">
       <div className="tabs reference-tabs">
         <button className={tab === 'notebook' ? 'active' : ''} onClick={() => setTab('notebook')}>Notebook</button>
-        <button className={tab === 'archive' ? 'active' : ''} onClick={() => setTab('archive')}>Archive</button>
         <button className={tab === 'readwise' ? 'active' : ''} onClick={() => setTab('readwise')}>Readwise</button>
       </div>
       {tab === 'notebook' && (
         <CandidateCards documentId={documentId} queryParts={queryParts} />
       )}
-      {tab === 'archive' && (
-        <ArchiveSuggestions documentId={documentId} insertEditor={insertEditor} />
-      )}
       {tab === 'readwise' && (
-        <ReadwisePanel documentId={documentId} editor={insertEditor} />
+        <ReadwisePanel editor={insertEditor} />
       )}
     </div>
   );
