@@ -9,6 +9,7 @@ import { CommentPanel } from './comments/CommentPanel.jsx';
 import { SuggestionPanel } from './suggestions/SuggestionPanel.jsx';
 import { LinkerDialog } from './gloss/LinkerDialog.jsx';
 import { ShareDialog } from './share/ShareDialog.jsx';
+import { PromptDialog } from './dialogs/PromptDialog.jsx';
 import { nanoid } from './editor/nanoid-browser.js';
 
 const STAGES = [
@@ -27,6 +28,7 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
   const [showShare, setShowShare] = useState(false);
   const [aiStatus, setAiStatus] = useState('');
   const [collabToken, setCollabToken] = useState(null);
+  const [promptDialog, setPromptDialog] = useState(null); // { message, placeholder, resolve }
 
   useEffect(() => { localStorage.setItem(`scribe.stage.${doc.id}`, stage); }, [stage, doc.id]);
 
@@ -82,6 +84,12 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
       }).catch(() => {});
     }
   }, [draftEditor.editor, role, doc.id, doc.source]);
+
+  function showPrompt(message, placeholder = '') {
+    return new Promise(resolve => {
+      setPromptDialog({ message, placeholder, resolve });
+    });
+  }
 
   const saveTimer = useRef(null);
   function saveMeta(patch) {
@@ -150,41 +158,41 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
     } catch (e) { setAiStatus(`Materialize failed: ${e.message}`); }
   }
 
-  // Review → Comms handoff. Minimal UI — prompt for a recipient name, POST
-  // to /send-to-comms with the current draft plaintext. Shows the resulting
-  // status + (where available) the Gmail draft URL in the toolbar chip.
+  // Review → Comms handoff. Prompts for a recipient name, then POSTs
+  // to /send-to-comms with the current draft plaintext.
   async function sendToComms() {
     const editor = draftEditor.editor;
     if (!editor) return;
-    const name = prompt('Send to whom? (comms contact display name)');
-    if (!name || !name.trim()) return;
+    const name = await showPrompt('Send to whom?', 'Comms contact display name');
+    if (!name) return;
     const text = docToPlainText(editor.state.doc).trim();
     if (!text) { setAiStatus('Document is empty — nothing to send.'); return; }
-    setAiStatus(`Sending to ${name.trim()} via comms…`);
+    setAiStatus(`Sending to ${name} via comms…`);
     try {
       const r = await api.sendToComms(doc.id, {
-        contactName: name.trim(),
+        contactName: name,
         bodyText: text,
         medium: 'email', style: 'warm',
       });
-      if (r.draft_id) setAiStatus(`Draft saved to Gmail (${r.draft_id.slice(0, 8)}…) for ${name.trim()}`);
-      else setAiStatus(`Draft body returned for ${name.trim()} — check comms logs`);
+      if (r.draft_id) setAiStatus(`Draft saved to Gmail (${r.draft_id.slice(0, 8)}…) for ${name}`);
+      else setAiStatus(`Draft body returned for ${name} — check comms logs`);
     } catch (e) { setAiStatus(`Send failed: ${e.message}`); }
   }
 
-  function addCommentOnSelection() {
+  async function addCommentOnSelection() {
     const editor = draftEditor.editor;
     if (!editor) return;
     const { from, to, empty } = editor.state.selection;
-    if (empty) { alert('Select some text first.'); return; }
+    if (empty) { setAiStatus('Select some text first.'); return; }
     const threadId = nanoid(10);
     editor.chain().focus().setMark('comment', { threadId }).run();
-    const body = prompt('Leave a comment:') || '';
-    if (!body.trim()) {
+    const body = await showPrompt('Leave a comment:');
+    if (!body) {
       editor.chain().focus().setTextSelection({ from, to }).unsetMark('comment').run();
       return;
     }
-    api.addComment(doc.id, { thread_id: threadId, body }).catch(e => alert(e.message));
+    api.addComment(doc.id, { thread_id: threadId, body })
+      .catch(e => setAiStatus(`Comment error: ${e.message}`));
   }
 
   const canEdit = role === 'editor';
@@ -264,6 +272,14 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
 
       {showLinker && <LinkerDialog documentId={doc.id} onClose={() => setShowLinker(false)} />}
       {showShare && <ShareDialog documentId={doc.id} onClose={() => setShowShare(false)} />}
+      {promptDialog && (
+        <PromptDialog
+          message={promptDialog.message}
+          placeholder={promptDialog.placeholder}
+          onConfirm={v => { const r = promptDialog.resolve; setPromptDialog(null); r(v); }}
+          onCancel={() => { const r = promptDialog.resolve; setPromptDialog(null); r(null); }}
+        />
+      )}
       <ProofreadPopover editor={draftEditor.editor} getSuggestions={() => getProofreadState(draftEditor.editor)?.suggestions || []} />
     </div>
   );

@@ -58,23 +58,32 @@ body {
 }
 
 button {
-  font: 13px ui-sans-serif, system-ui, sans-serif;
+  font: 13px/1 ui-sans-serif, system-ui, sans-serif;
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--rule);
-  padding: 5px 11px;
-  border-radius: 4px;
+  padding: 6px 13px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease, transform 0.08s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 button:hover { background: var(--accent-soft); border-color: var(--ink-soft); }
+button:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 button:disabled { opacity: 0.4; cursor: default; }
-button.primary { background: var(--accent); color: var(--card); border-color: var(--accent); }
-button.primary:hover { filter: brightness(1.05); }
+button.primary {
+  background: var(--accent);
+  color: var(--card);
+  border-color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.14), 0 2px 6px rgba(122,74,47,0.18);
+}
+button.primary:hover { filter: brightness(1.08); box-shadow: 0 2px 7px rgba(0,0,0,0.18), 0 3px 12px rgba(122,74,47,0.22); }
+button.primary:active:not(:disabled) { filter: brightness(0.97); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 button.danger { color: var(--danger); }
-button.link-btn { background: transparent; border: none; color: var(--ink-muted); text-decoration: underline; font-size: 12px; padding: 2px 4px; }
+button.danger:hover { border-color: var(--danger); background: var(--card); }
+button.link-btn { background: transparent; border: none; color: var(--ink-muted); text-decoration: underline; font-size: 12px; padding: 2px 4px; box-shadow: none; }
 button.link-btn:hover { color: var(--ink); background: transparent; }
-button.x { padding: 0 6px; font-size: 12px; color: var(--ink-muted); background: transparent; border: none; }
+button.x { padding: 0 6px; font-size: 12px; color: var(--ink-muted); background: transparent; border: none; box-shadow: none; }
 button.x:hover { color: var(--danger); background: transparent; }
 
 :focus-visible {
@@ -104,6 +113,7 @@ a { color: var(--accent); }
   background: var(--paper-2);
   border-bottom: 1px solid var(--rule);
   font: 13px ui-sans-serif, system-ui, sans-serif;
+  transition: opacity 0.35s ease;
 }
 .topbar .title { font-weight: 600; letter-spacing: 0.01em; font-family: ui-serif, Georgia, serif; font-size: 17px; }
 .topbar .crumb { color: var(--ink-muted); }
@@ -121,38 +131,60 @@ a { color: var(--accent); }
   display: inline-flex;
   background: var(--card);
   border: 1px solid var(--rule);
-  border-radius: 4px;
+  border-radius: 5px;
   padding: 2px;
   margin-left: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .stage-switch .stage-btn {
   background: transparent;
   border: none;
-  padding: 3px 12px;
+  padding: 4px 13px;
   font-size: 12px;
-  border-radius: 3px;
+  border-radius: 4px;
   color: var(--ink-muted);
+  box-shadow: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.stage-switch .stage-btn:hover { color: var(--ink); background: transparent; }
+.stage-switch .stage-btn:hover { color: var(--ink); background: var(--accent-soft); }
+.stage-switch .stage-btn:active:not(:disabled) { transform: none; }
 .stage-switch .stage-btn.active {
   background: var(--accent);
   color: var(--card);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.14);
 }
 
 .topbar button.toggle {
   background: transparent;
   border: 1px solid transparent;
   color: var(--ink-muted);
-  padding: 3px 10px;
+  padding: 4px 10px;
   font-size: 12px;
+  box-shadow: none;
 }
-.topbar button.toggle:hover { color: var(--ink); background: var(--accent-soft); }
-.topbar button.toggle.on { color: var(--ink); background: var(--accent-soft); border-color: var(--rule); }
+.topbar button.toggle:hover { color: var(--ink); background: var(--accent-soft); border-color: var(--rule-soft); }
+.topbar button.toggle.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--rule);
+  font-weight: 600;
+}
 
-.shell.focus-mode .topbar { opacity: 0.15; transition: opacity 0.2s; }
-.shell.focus-mode .topbar:hover { opacity: 1; }
-.shell.focus-mode .meta-form { opacity: 0.3; transition: opacity 0.2s; }
-.shell.focus-mode .meta-form:hover, .shell.focus-mode .meta-form:focus-within { opacity: 1; }
+/* Focus mode — immersive writing environment */
+.meta-form { transition: opacity 0.35s ease; }
+
+.shell.focus-mode .topbar { opacity: 0.06; }
+.shell.focus-mode .topbar:hover,
+.shell.focus-mode .topbar:focus-within { opacity: 1; transition: opacity 0.15s ease; }
+.shell.focus-mode .meta-form { opacity: 0.1; }
+.shell.focus-mode .meta-form:hover,
+.shell.focus-mode .meta-form:focus-within { opacity: 1; transition: opacity 0.15s ease; }
+
+/* Subtle vignette in focus mode to frame the writing surface */
+.shell.focus-mode .draft-center {
+  background-image:
+    radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,0.035) 100%);
+}
 
 /* ---- Doc list ---- */
 .doclist { max-width: 780px; margin: 40px auto; padding: 0 16px; }
@@ -700,6 +732,75 @@ a.notecard-source:hover { text-decoration: underline; }
   button, .btn {
     min-height: 36px;
   }
+}
+
+/* ── Confirm / Prompt dialogs (replace native confirm/prompt) ─────────────── */
+.confirm-dialog {
+  position: fixed; inset: 0;
+  background: rgba(30, 25, 15, 0.5);
+  display: grid; place-items: center;
+  z-index: 100;
+  animation: dialog-backdrop-in 0.2s ease;
+}
+.confirm-dialog .panel {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 24px 28px;
+  width: min(400px, 90vw);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+  animation: dialog-panel-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.confirm-message {
+  margin: 0 0 18px;
+  font: 15px/1.55 ui-serif, Georgia, serif;
+  color: var(--ink);
+}
+.confirm-message strong { font-weight: 600; }
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.confirm-input {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+/* ── Toast notifications ──────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 10px 16px;
+  border-radius: 5px;
+  font: 13px/1.45 ui-sans-serif, system-ui, sans-serif;
+  max-width: 360px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-error { background: var(--danger); }
+
+@keyframes dialog-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dialog-panel-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* ── Archive (black-hole) section in the reference panel ─────────────────── */
