@@ -1,23 +1,54 @@
 # Scribe
 
-A collaborative longform document editor that lives inside a personal app suite. Scribe is where prose goes: drafts, essays, proposals, meeting notes — anything that benefits from a real editor rather than a bullet-journal page.
+Scribe is a writing tool built around your personal knowledge. Start a document and Scribe automatically pulls in relevant notes from your journal ([Gloss](https://github.com/nathan0colestock-code/gloss)), highlighted passages from your reading (Readwise), and matching archived files ([Black](https://github.com/nathan0colestock-code/black)) — all in a side panel while you write. When a draft is ready, hand it to [Comms](https://github.com/nathan0colestock-code/comms) and it drafts the outbound email in your voice, tailored to the recipient's history with you.
 
-Scribe's superpower is **two-way linking with [gloss](https://github.com/nathan0colestock-code/gloss)**: a gloss collection can be attached to a document, and the document's drag-handles, block actions, and reference side-panel know how to pull from that collection.
+Part of a five-app personal suite: [maestro](https://github.com/nathan0colestock-code/maestro) · [gloss](https://github.com/nathan0colestock-code/gloss) · [comms](https://github.com/nathan0colestock-code/comms) · [black](https://github.com/nathan0colestock-code/black)
+
+![Scribe editor — block-based writing with Gloss, Archive, and Readwise in the reference panel](docs/screenshots/editor.png)
 
 ---
 
 ## Surfaces
 
-- **Home** — dashboard of all documents, tagged by linked gloss collection
-- **Editor** — a block-based editor with drag handles, style guide, and gloss-linked side panel
-- **Collections** — documents grouped under the gloss collections they reference
+- **Home** — all documents, each tagged by its linked Gloss collection and current stage
+- **Editor** — block-based editor with drag handles, style guide, and the reference side panel
+- **Collections** — documents grouped under their Gloss collections
 
-### Workflow features
+---
 
-- **Three stages per doc** — outline → draft → review, each with its own Yjs-backed editor. Stage transitions auto-snapshot into `document_snapshots` so rewinding to "what did the outline look like when I started drafting" is free.
-- **Paste-import** — "Import text…" button next to "New document". Paste a reMarkable export (or any plain text), confirm the title, hit Create. The new doc opens in Draft with the text seeded in.
-- **Send to Comms** — on a review-stage doc, hand off the current plaintext to comms as an outbound Gmail draft. Comms regenerates the body in your voice using the recipient's comms + gloss history; nothing sends automatically.
-- **Corruption-safe collab** — Yjs updates are try/catch-wrapped, so a single bad buffer no longer bricks a doc permanently; the corrupt state is preserved as a `corruption_fallback` snapshot for offline inspection.
+## Features
+
+### Three stages per document
+**Outline → Draft → Review.** Each stage has its own Yjs-backed editor. Stage transitions auto-snapshot into `document_snapshots` so "what did the outline look like?" is always answerable.
+
+### Reference panel
+Three live sources in the sidebar:
+- **Gloss** — collections, people, scripture, books, artifacts matching the doc's topic
+- **Archive** — top hits from [Black](https://github.com/nathan0colestock-code/black) (cached 5 min)
+- **Readwise** — searchable highlights + source books from your Readwise account
+
+Click any item to insert a citation-style blockquote at the cursor.
+
+### AI writing assistance
+- **Proofread** — inline grammar and clarity pass via Gemini
+- **Style check** — tone, register, and consistency review
+
+### Outline system
+Structured outline nodes with full CRUD and card creation. **Materialize** explodes an outline into a seeded draft fragment with one click.
+
+### Paste-import
+"Import text…" next to "New document". Paste a reMarkable export or any plain text, confirm the title, and the doc opens in Draft with the text seeded.
+
+### Send to Comms
+On a review-stage document, hand off the plaintext to [Comms](https://github.com/nathan0colestock-code/comms). Comms generates a Gmail draft in your voice using the recipient's message history and gloss notes. Nothing sends automatically.
+
+### Real-time collaboration
+Yjs-backed sync via a Hocuspocus WebSocket server. Multi-role share links (editor / viewer / commenter). Guest access with display-name-based identity — no account required.
+
+Corruption safety: Yjs updates are try/catch-wrapped. A bad buffer can't brick a doc; the corrupt state is preserved as a `corruption_fallback` snapshot.
+
+### Readwise integration
+`POST /api/readwise/sync` pulls updated highlights and books from Readwise. The reference panel searches them live as you write. `GET /api/documents/:id/readwise-suggestions` surfaces the most relevant highlights for the current document topic.
 
 ---
 
@@ -26,6 +57,7 @@ Scribe's superpower is **two-way linking with [gloss](https://github.com/nathan0
 - Node 20 + Express API
 - Vite + React frontend (`src/`)
 - SQLite (`better-sqlite3`)
+- Hocuspocus for real-time Yjs collaboration
 - Deployed to [Fly.io](https://fly.io)
 - SQLite replicated to Cloudflare R2 via [Litestream](https://litestream.io)
 
@@ -35,8 +67,8 @@ Scribe's superpower is **two-way linking with [gloss](https://github.com/nathan0
 
 ```bash
 npm install
-cp .env.example .env              # set API_KEY, GLOSS_URL, GLOSS_API_KEY
-npm run dev                        # API on :3000, web on :5173
+cp .env.example .env              # API_KEY, GLOSS_URL, GLOSS_API_KEY
+npm run dev                        # API on :3000, Vite on :5173
 npm test
 ```
 
@@ -44,30 +76,44 @@ npm test
 
 ## API
 
-All `/api/*` routes require Bearer auth with either the app's `API_KEY` or the shared suite `SUITE_API_KEY`.
+All routes require `Authorization: Bearer <API_KEY>` or `Bearer <SUITE_API_KEY>`.
 
+### Documents
 - `GET /api/health` — liveness, no auth
-- `GET /api/status` — suite-standard status envelope (see "Suite siblings" below)
+- `GET /api/status` — suite-standard status envelope
 - `GET /api/documents` — list + search
-- `POST /api/documents` — create. Accepts optional `source: { kind, ... }` + `seed_body` so a server-side creator (e.g. Black's "Open in Scribe") can seed the initial draft.
-- `GET /api/documents/:id/pending-seed` — read-once drain of server-side seed text, used by the draft editor on first open.
-- `GET /api/documents/:id/black-suggestions` — Archive hits for the doc's topic (queries black on demand, cached 5 min).
-- `POST /api/documents/:id/send-to-comms` — hand off to comms for outbound drafting
+- `POST /api/documents` — create; accepts `seed_body` for server-seeded drafts (e.g. from Black's "Open in Scribe")
+- `GET /api/documents/:id/pending-seed` — read-once drain of server-provided seed text
+- `GET /api/documents/:id/collaborators` — list active collaborators
+- `GET /api/documents/:id/collab-token` — WebSocket auth token
+- `POST /api/documents/:id/send-to-comms` — hand off to Comms for Gmail drafting
 - `POST /api/documents/:id/materialize` — explode outline into a draft fragment
-- `GET /api/gloss-links/collections` — list linked gloss collections
-- `POST /api/readwise/sync` — pull updated highlights + books from Readwise (needs `READWISE_TOKEN`)
-- `GET /api/readwise/search?q=...` — fuzzy search across highlights + notes + book titles
-- `GET /api/readwise/books`, `GET /api/readwise/books/:id/highlights`, `GET /api/readwise/recent`, `GET /api/readwise/state`
 
-## Reference panel
+### AI
+- `POST /api/documents/:id/ai/proofread` — grammar and clarity pass
+- `POST /api/documents/:id/ai/style-check` — tone and register review
 
-The sidebar on any document now has three sources feeding it:
+### Outline
+- `GET/POST/PATCH/DELETE /api/documents/:id/outline/*` — outline node CRUD
 
-- **Gloss** — collections, people, scripture, books, artifacts matching the doc's topic
-- **Archive** — top hits from [black](https://github.com/nathan0colestock-code/black) matching the doc's topic
-- **Readwise** — searchable library of highlights + source books pulled from your Readwise account
+### Sharing & collaboration
+- `POST /api/documents/:id/share` — create a share link with a role (editor/viewer/commenter)
+- `GET /api/documents/:id/shares` — list active shares
+- `DELETE /api/documents/:id/shares/:token` — revoke
+- `POST /api/join` — guest access with display name
 
-Clicking any item inserts a citation-style blockquote at the cursor. Scribe routes the insertion to the right editor based on stage (Outline vs Draft).
+### Gloss
+- `GET /api/gloss-links/collections` — linked Gloss collections
+
+### Black
+- `GET /api/documents/:id/black-suggestions` — archive hits for the doc's topic (cached 5 min)
+
+### Readwise
+- `POST /api/readwise/sync` — pull highlights + books (`READWISE_TOKEN` required)
+- `GET /api/readwise/search?q=...` — fuzzy search across highlights, notes, and titles
+- `GET /api/readwise/books` / `GET /api/readwise/books/:id/highlights`
+- `GET /api/readwise/recent` / `GET /api/readwise/state`
+- `GET /api/documents/:id/readwise-suggestions` — highlights relevant to this document
 
 ---
 
@@ -77,24 +123,24 @@ Clicking any item inserts a citation-style blockquote at the cursor. Scribe rout
 fly deploy
 ```
 
-Fly secrets needed: `API_KEY`, `SUITE_API_KEY`, `GLOSS_URL`, `GLOSS_API_KEY`, `SESSION_SECRET`, `AUTH_PASSWORD`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`.
+Fly secrets: `API_KEY`, `SUITE_API_KEY`, `GLOSS_URL`, `GLOSS_API_KEY`, `SESSION_SECRET`, `AUTH_PASSWORD`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`.
 
 ---
 
 ## Suite siblings
 
-Scribe is the **longform writing** node of a five-app personal suite. Independent processes, all on [Fly.io](https://fly.io), all backed up to R2 via Litestream.
+Scribe is the **longform writing** node of a five-app personal suite. Independent processes, all on [Fly.io](https://fly.io), backed up to R2 via Litestream.
 
-| App | Role | How it integrates with Scribe |
+| App | What it does | How it connects to Scribe |
 |---|---|---|
-| **[gloss](https://github.com/nathan0colestock-code/gloss)** | Personal knowledge graph | Primary partner — scribe reads/writes gloss collections, documents are tagged by gloss collection |
-| **[comms](https://github.com/nathan0colestock-code/comms)** | iMessage + Gmail + contacts | Indirect: contact profiles flow comms → gloss → scribe |
-| **[black](https://github.com/nathan0colestock-code/black)** | Personal file search (Drive, Evernote, iCloud → indexed) | Black can search inside scribe documents via the shared gloss surface |
-| **[maestro](https://github.com/nathan0colestock-code/maestro)** | Overnight orchestration | Polls `GET /api/status`; can dispatch feature sets touching scribe |
+| **[gloss](https://github.com/nathan0colestock-code/gloss)** | Personal knowledge graph (journal OCR, pages, collections, people) | "Promote to Scribe" creates docs from gloss pages; documents tagged by gloss collection |
+| **[comms](https://github.com/nathan0colestock-code/comms)** | iMessage + Gmail + contacts hub | "Send to Comms" hands a review-stage doc for Gmail drafting |
+| **[black](https://github.com/nathan0colestock-code/black)** | Personal file search (Drive, Evernote, iCloud) | Archive suggestions in the reference panel; "Open in Scribe" seeds a doc from any search result |
+| **[maestro](https://github.com/nathan0colestock-code/maestro)** | Overnight code orchestration | Polls `/api/status`; dispatches feature sets |
 
-All five apps expose a suite-standard `GET /api/status` → `{ app, version, ok, uptime_seconds, metrics }`, Bearer-authed.
+All five apps expose `GET /api/status` → `{ app, version, ok, uptime_seconds, metrics }`, Bearer-authed.
 
-Integration contracts between pairs of apps live in `docs/INTEGRATIONS/` in the primary repo for each contract.
+Integration contracts live in `docs/INTEGRATIONS/` in the primary repo for each contract.
 
 ---
 

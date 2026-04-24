@@ -215,6 +215,52 @@ app.get('/api/status', requireBearer, (_req, res) => {
   });
 });
 
+// Richer signal surface for Maestro's nightly improvement agent. Bearer-gated.
+app.get('/api/telemetry/nightly', requireBearer, (_req, res) => {
+  const runCount = (sql) => {
+    try {
+      const row = db.db.prepare(sql).get();
+      if (!row) return 0;
+      const v = Object.values(row)[0];
+      return typeof v === 'number' ? v : Number(v) || 0;
+    } catch { return 0; }
+  };
+  const runScalar = (sql) => {
+    try { const row = db.db.prepare(sql).get(); return row ? (Object.values(row)[0] ?? null) : null; }
+    catch { return null; }
+  };
+  const lastReadwise  = runScalar("SELECT MAX(synced_at) FROM readwise_highlights");
+  const lastDocUpdate = runScalar("SELECT MAX(updated_at) FROM documents");
+  const ageHours = (iso) => { if (!iso) return null; const t = Date.parse(iso); return Number.isFinite(t) ? Math.floor((Date.now() - t) / 3600000) : null; };
+  const metrics = {
+    total_documents:        runCount('SELECT COUNT(*) AS n FROM documents'),
+    docs_created_7d:        runCount("SELECT COUNT(*) AS n FROM documents WHERE date(created_at) >= date('now','-7 day')"),
+    docs_updated_7d:        runCount("SELECT COUNT(*) AS n FROM documents WHERE date(updated_at) >= date('now','-7 day')"),
+    pending_seed_count:     runCount('SELECT COUNT(*) AS n FROM documents WHERE pending_seed IS NOT NULL'),
+    active_collaborators:   runCount(`SELECT COUNT(DISTINCT user_email) AS n FROM document_collaborators
+                                      WHERE last_seen_at IS NOT NULL AND last_seen_at >= datetime('now','-5 minutes')`),
+    gloss_linked_collections: runCount("SELECT COUNT(*) AS n FROM gloss_links WHERE kind = 'collection'"),
+    readwise_highlights:    runCount('SELECT COUNT(*) AS n FROM readwise_highlights'),
+    readwise_synced_7d:     runCount("SELECT COUNT(*) AS n FROM readwise_highlights WHERE date(synced_at) >= date('now','-7 day')"),
+    last_readwise_sync_at:  lastReadwise,
+    last_readwise_age_hours: ageHours(lastReadwise),
+    last_doc_update_at:     lastDocUpdate,
+  };
+  const health = {
+    readwise_stale:     metrics.last_readwise_age_hours != null && metrics.last_readwise_age_hours > 48,
+    no_readwise_sync:   metrics.last_readwise_sync_at == null,
+    pending_seed_stuck: metrics.pending_seed_count > 5,
+    black_url_missing:  !process.env.BLACK_URL,
+  };
+  res.json({
+    app: 'scribe',
+    version: APP_VERSION,
+    date: new Date().toISOString().slice(0, 10),
+    uptime_seconds: Math.floor(process.uptime()),
+    metrics, health,
+  });
+});
+
 // ── Login rate limit ──────────────────────────────────────────────────────────
 // In-memory sliding window; 5 attempts / 15 minutes per IP. No persistence —
 // a machine restart wipes the counter, which is acceptable for a single-user
