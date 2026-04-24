@@ -1,7 +1,7 @@
 // Black HTTP client — companion to gloss.js and comms.js, talks to black-hole
 // (the archive search service).
 //
-// Dev: http://localhost:3749. Prod: https://black-hole.fly.dev.
+// Dev: http://localhost:3749. Prod: https://your-black-app.fly.dev.
 // Auth: Bearer `BLACK_API_KEY` (black accepts SUITE_API_KEY as a fallback,
 // but we use a dedicated key so outbound interactive reads can be rotated
 // independently of suite-wide polling).

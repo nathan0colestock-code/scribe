@@ -4,3 +4,9 @@ data/
 .env
 *.log
 .DS_Store
+CLAUDE.md
+AUDIT-*.md
+tasks.md
+SYSTEM.md
+LESSONS.md
+reports/

@@ -1,6 +1,6 @@
 // Gloss HTTP client + transcript hydrator.
 //
-// Gloss is a sibling app. Dev: http://localhost:3747. Prod: https://gloss-nc.fly.dev.
+// Gloss is a sibling app. Dev: http://localhost:3747. Prod: https://your-gloss-app.fly.dev.
 // Auth: prod Gloss enforces a `foxed_auth` signed cookie from POST /api/login.
 // We lazily log in with GLOSS_PASSWORD, cache the returned Set-Cookie, and attach
 // it on every outgoing call. On 401, we clear the cache and re-login once.
@@ -169,7 +169,7 @@ export async function hydrateAllLinksForDocument(document_id) {
   return { links: links.length, pages: totalPages, with_text: totalText };
 }
 
-const SCRIBE_URL = (process.env.SCRIBE_URL || 'https://scribe-nc.fly.dev').replace(/\/$/, '');
+const SCRIBE_URL = (process.env.SCRIBE_URL || 'https://your-scribe-app.fly.dev').replace(/\/$/, '');
 
 // Create or update a Gloss artifact that represents this Scribe document.
 // Call this when a new collection is linked so the collection detail in Gloss

@@ -1,7 +1,7 @@
 // Comms HTTP client — companion to gloss.js, but talks to the comms app.
 //
 // Comms is the suite's communication hub (iMessage + email + calendar).
-// Dev: http://localhost:3748. Prod: https://comms-nc.fly.dev.
+// Dev: http://localhost:3748. Prod: https://your-comms-app.fly.dev.
 // Auth: Bearer `COMMS_API_KEY`. No cookie fallback — comms accepts the
 // shared SUITE_API_KEY as well, so callers can use either.
 

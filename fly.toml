@@ -1,4 +1,4 @@
-app = "scribe-nc"
+app = "your-scribe-app"
 primary_region = "ord"
 
 [build]
@@ -6,8 +6,7 @@ primary_region = "ord"
 [env]
   NODE_ENV = "production"
   PORT = "3748"
-  GLOSS_URL = "https://gloss-nc.fly.dev"
-  SCRIBE_OWNER_EMAIL = "nathan@local"
+  GLOSS_URL = "https://your-gloss-app.fly.dev"
 
 [http_service]
   internal_port = 3748

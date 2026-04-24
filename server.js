@@ -45,7 +45,7 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || '';
 const SESSION_SECRET = process.env.SESSION_SECRET || (IS_PROD ? '' : 'dev-session-secret');
 const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const OWNER_EMAIL = process.env.SCRIBE_OWNER_EMAIL || 'nathan@local';
+const OWNER_EMAIL = process.env.SCRIBE_OWNER_EMAIL || 'owner@local';
 
 const AUTH_ENABLED = IS_PROD || !!AUTH_PASSWORD;
 

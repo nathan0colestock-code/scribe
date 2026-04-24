@@ -16,7 +16,7 @@ Scribe's superpower is **two-way linking with [gloss](https://github.com/nathan0
 
 - **Three stages per doc** — outline → draft → review, each with its own Yjs-backed editor. Stage transitions auto-snapshot into `document_snapshots` so rewinding to "what did the outline look like when I started drafting" is free.
 - **Paste-import** — "Import text…" button next to "New document". Paste a reMarkable export (or any plain text), confirm the title, hit Create. The new doc opens in Draft with the text seeded in.
-- **Send to Comms** — on a review-stage doc, hand off the current plaintext to comms as an outbound Gmail draft. Comms regenerates the body in Nathan's voice using the recipient's comms + gloss history; nothing sends automatically.
+- **Send to Comms** — on a review-stage doc, hand off the current plaintext to comms as an outbound Gmail draft. Comms regenerates the body in your voice using the recipient's comms + gloss history; nothing sends automatically.
 - **Corruption-safe collab** — Yjs updates are try/catch-wrapped, so a single bad buffer no longer bricks a doc permanently; the corrupt state is preserved as a `corruption_fallback` snapshot for offline inspection.
 
 ---
@@ -26,7 +26,7 @@ Scribe's superpower is **two-way linking with [gloss](https://github.com/nathan0
 - Node 20 + Express API
 - Vite + React frontend (`src/`)
 - SQLite (`better-sqlite3`)
-- Deployed to [Fly.io](https://fly.io) as **`scribe-nc`**
+- Deployed to [Fly.io](https://fly.io)
 - SQLite replicated to Cloudflare R2 via [Litestream](https://litestream.io)
 
 ---
@@ -64,7 +64,7 @@ All `/api/*` routes require Bearer auth with either the app's `API_KEY` or the s
 The sidebar on any document now has three sources feeding it:
 
 - **Gloss** — collections, people, scripture, books, artifacts matching the doc's topic
-- **Archive** — top hits from [black-hole](https://github.com/nathan0colestock-code/black) matching the doc's topic
+- **Archive** — top hits from [black](https://github.com/nathan0colestock-code/black) matching the doc's topic
 - **Readwise** — searchable library of highlights + source books pulled from your Readwise account
 
 Clicking any item inserts a citation-style blockquote at the cursor. Scribe routes the insertion to the right editor based on stage (Outline vs Draft).
@@ -74,7 +74,7 @@ Clicking any item inserts a citation-style blockquote at the cursor. Scribe rout
 ## Deploy
 
 ```bash
-fly deploy -a scribe-nc
+fly deploy
 ```
 
 Fly secrets needed: `API_KEY`, `SUITE_API_KEY`, `GLOSS_URL`, `GLOSS_API_KEY`, `SESSION_SECRET`, `AUTH_PASSWORD`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`.
