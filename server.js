@@ -356,6 +356,7 @@ app.post('/api/join', joinLimiter, (req, res) => {
 // ---- Auth gate for everything else ----
 function requireAuth(req, res, next) {
   if (req.user) return next();
+  if (checkBearerAuth(req)) return next();
   return res.status(401).json({ error: 'unauthenticated' });
 }
 app.use('/api', requireAuth);
