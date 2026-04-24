@@ -35,7 +35,7 @@ COPY package.json package-lock.json* ./
 RUN npm install --omit=dev \
  && apt-get purge -y python3 make g++ curl \
  && apt-get autoremove -y
-COPY server.js db.js gloss.js comms.js black.js readwise.js ai.js collab.js litestream.yml ./
+COPY server.js db.js gloss.js comms.js black.js readwise.js ai.js collab.js exports.js log.js litestream.yml ./
 COPY routes ./routes
 COPY migrations ./migrations
 COPY --from=build /app/dist ./dist
