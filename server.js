@@ -28,6 +28,9 @@ import { router as readwiseRouter, runSync as runReadwiseSync } from './routes/r
 import { router as readwiseSuggestionsRouter } from './routes/readwise-suggestions.js';
 import * as readwiseClient from './readwise.js';
 import { router as blackRouter } from './routes/black.js';
+import { router as exportsRouter } from './routes/exports.js';
+import { archiveIngest, isConfigured as blackIsConfigured } from './black.js';
+import { log as slog, recent as sLogsRecent, httpMiddleware as sLogMiddleware } from './log.js';
 
 // ---- Env loader (simple KEY=VALUE .env, no dotenv dep) ----
 try {
@@ -104,6 +107,9 @@ app.use(helmet({
   // a proper policy audit before we can turn it on. Tracked in TODO.
   contentSecurityPolicy: false,
 }));
+// Structured logging contract — assigns trace_id, logs every request. Must be
+// before body parsers so we still capture early failures.
+app.use(sLogMiddleware);
 app.use(express.json({ limit: '4mb' }));
 
 // /api/join throttle (spray attacks create guest users per display name).
@@ -381,9 +387,63 @@ app.use('/api/documents', outlineRouter);
 app.use('/api/documents', commsRouter);
 app.use('/api/documents', blackRouter);
 app.use('/api/documents', readwiseSuggestionsRouter);
+app.use('/api/documents', exportsRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/style-guides', styleRouter);
 app.use('/api/readwise', readwiseRouter);
+
+// S-U-02: UI gates the Archive tab on this flag. When BLACK_URL is unset,
+// the tab renders an empty-state card rather than silently hiding the tab.
+app.get('/api/archive/config', (_req, res) => {
+  res.json({ configured: blackIsConfigured(), black_url: blackIsConfigured() ? null : null });
+});
+
+// GET /api/logs/recent — bearer-gated pull endpoint for Maestro's log
+// collector. Returns the last 1000 JSON-line log entries.
+app.get('/api/logs/recent', requireBearer, (req, res) => {
+  const entries = sLogsRecent({
+    since: req.query.since,
+    level: req.query.level,
+    limit: req.query.limit,
+  });
+  res.json({ entries, count: entries.length });
+});
+
+// Stage-transition hook for auto-archive.
+//
+// The existing PATCH /api/documents/:id handler already runs before this
+// middleware, so we can't intercept the body there without restructuring.
+// Instead: expose a tiny bearer-less endpoint that the client calls once
+// it confirms the transition persisted. Owner-only; auto-archive is a
+// side-effect of "this doc is ready to show up in Black".
+app.post('/api/documents/:id/auto-archive', async (req, res) => {
+  if (!req.user?.is_owner) return res.status(403).json({ error: 'owner only' });
+  const doc = db.getDocument(req.params.id);
+  if (!doc) return res.status(404).json({ error: 'not found' });
+  // Pull the draft yjs state and turn it into text on the fly. We reuse the
+  // exports path because it's the same extraction logic.
+  const buf = db.getYjsState(doc.id, 'draft');
+  let plain = '';
+  try {
+    const { yjsStateToProsemirrorJSON } = await import('./exports.js');
+    const { prosemirrorToPlain } = await import('./routes/exports.js');
+    plain = prosemirrorToPlain(yjsStateToProsemirrorJSON(buf, 'default'));
+  } catch (err) {
+    slog('warn', 'auto_archive_decode_failed', { trace_id: req.trace_id, doc_id: doc.id, error: err.message });
+  }
+  const r = await archiveIngest({
+    doc_id: doc.id,
+    title: doc.title,
+    date: doc.updated_at || doc.created_at,
+    collection: doc.collection || null,
+    body_text: plain,
+    url: process.env.SCRIBE_PUBLIC_URL ? `${process.env.SCRIBE_PUBLIC_URL.replace(/\/$/, '')}/d/${doc.id}` : null,
+    traceId: req.trace_id,
+    log: slog,
+  });
+  // Always 200 — archive is best-effort, failures are informational only.
+  res.json({ ok: true, archived: r.ok, status: r.status || null, reason: r.reason || r.error || null });
+});
 
 // ---- Static (prod) ----
 if (IS_PROD) {
@@ -430,6 +490,13 @@ if (IS_PROD && process.env.READWISE_TOKEN) {
       });
       console.log(`[readwise] sync ok: ${r.books_upserted} books, ${r.highlights_upserted} highlights in ${r.elapsed_ms}ms`);
     } catch (err) {
+      // S-U-01: structured log for the failure so Maestro's log collector
+      // (and any future alerting) can act on it.
+      slog('error', 'readwise_sync_failure', {
+        error: err.message,
+        timestamp: new Date().toISOString(),
+        scheduled: true,
+      });
       console.warn(`[readwise] scheduled sync failed: ${err.message}`);
     }
   };

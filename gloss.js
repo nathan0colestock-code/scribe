@@ -47,9 +47,12 @@ async function ensureCookie() {
 // Primary: `Authorization: Bearer ${GLOSS_API_KEY}` (standardized across the suite).
 // Fallback: signed cookie from POST /api/login when GLOSS_API_KEY is absent,
 // for backwards compatibility with older deployments.
-async function request(path, { method = 'GET', body, retried = false } = {}) {
+async function request(path, { method = 'GET', body, retried = false, traceId } = {}) {
   const headers = { Accept: 'application/json' };
   if (body) headers['Content-Type'] = 'application/json';
+  // S-I-03: propagate trace id to Gloss so cross-app request flows can be
+  // reconstructed from log output.
+  if (traceId) headers['X-Trace-Id'] = traceId;
   if (GLOSS_API_KEY) {
     headers['Authorization'] = `Bearer ${GLOSS_API_KEY}`;
   } else if (GLOSS_PASSWORD) {
@@ -65,7 +68,7 @@ async function request(path, { method = 'GET', body, retried = false } = {}) {
   // Only retry the cookie path — Bearer tokens don't expire mid-session.
   if ((res.status === 401 || res.status === 302) && !retried && !GLOSS_API_KEY && GLOSS_PASSWORD) {
     cachedCookie = null;
-    return request(path, { method, body, retried: true });
+    return request(path, { method, body, retried: true, traceId });
   }
   if (!res.ok) {
     const text = await res.text().catch(() => '');

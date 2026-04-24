@@ -81,9 +81,15 @@ export function ReadwisePanel({ editor, documentId }) {
     return () => { cancelled = true; };
   }, [debounced]);
 
+  // S-U-01: surface failures as a dismissable toast with a retry action
+  // (separate from the status chip, which is transient). `syncError` is
+  // cleared on successful sync or when the user dismisses the toast.
+  const [syncError, setSyncError] = useState(null);
+
   async function syncNow() {
     setSyncing(true);
     setStatus('Syncing Readwise…');
+    setSyncError(null);
     try {
       const r = await api.readwiseSync();
       setStatus(`Synced: ${r.books_upserted} books, ${r.highlights_upserted} highlights (${r.elapsed_ms} ms)`);
@@ -93,6 +99,7 @@ export function ReadwisePanel({ editor, documentId }) {
       ]);
     } catch (e) {
       setStatus(`Sync failed: ${e.message}`);
+      setSyncError(e.message || 'unknown error');
     } finally {
       setSyncing(false);
     }
@@ -150,6 +157,24 @@ export function ReadwisePanel({ editor, documentId }) {
         onChange={e => setQuery(e.target.value)}
       />
       {status && <div className="stats">{status}</div>}
+      {syncError && (
+        <div
+          className="readwise-sync-error"
+          role="alert"
+          style={{
+            marginTop: 8, padding: '8px 10px', border: '1px solid #a33',
+            borderRadius: 6, background: '#321818', color: '#f6baba',
+            fontSize: 13, lineHeight: 1.4,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Readwise sync failed</div>
+          <div style={{ marginBottom: 6 }}>{syncError}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={syncNow} disabled={syncing}>Retry</button>
+            <button onClick={() => setSyncError(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
 
       {showing.length === 0 ? (
         <div className="empty">{emptyMessage}</div>

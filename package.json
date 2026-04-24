@@ -21,6 +21,7 @@
     "express-rate-limit": "^8.4.0",
     "helmet": "^8.1.0",
     "nanoid": "^5.0.7",
+    "pdfkit": "^0.18.0",
     "tiptap-extension-global-drag-handle": "^0.1.18",
     "ws": "^8.18.0",
     "yjs": "^13.6.20"

@@ -55,6 +55,10 @@ export const api = {
     return request(`/api/documents/${id}/black-suggestions?${params.toString()}`);
   },
 
+  // S-U-02: the Archive tab calls this once on mount to decide whether to
+  // show real content or a "configure BLACK_URL" empty-state card.
+  archiveConfig: () => request('/api/archive/config'),
+
   listComments: (id) => request(`/api/documents/${id}/comments`),
   addComment: (id, body) => request(`/api/documents/${id}/comments`, { method: 'POST', body }),
   resolveThread: (id, threadId) => request(`/api/documents/${id}/comments/${threadId}/resolve`, { method: 'POST' }),

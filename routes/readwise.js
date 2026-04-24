@@ -18,6 +18,7 @@
 import express from 'express';
 import * as db from '../db.js';
 import * as readwise from '../readwise.js';
+import { log as slog } from '../log.js';
 
 export const router = express.Router();
 
@@ -68,7 +69,7 @@ export async function runSync({ token, since, clients = readwise } = {}) {
   };
 }
 
-router.post('/sync', async (_req, res) => {
+router.post('/sync', async (req, res) => {
   const token = process.env.READWISE_TOKEN;
   if (!token) {
     return res.status(503).json({
@@ -80,8 +81,16 @@ router.post('/sync', async (_req, res) => {
     const result = await runSync({ token, since });
     res.json(result);
   } catch (err) {
+    // S-U-01: structured log for the failure + retryable: true so the
+    // frontend toast can offer a retry action.
+    slog('error', 'readwise_sync_failure', {
+      trace_id: req.trace_id,
+      error: err.message,
+      timestamp: new Date().toISOString(),
+      scheduled: false,
+    });
     console.warn('[readwise] sync failed:', err.message);
-    res.status(502).json({ error: err.message });
+    res.status(502).json({ ok: false, error: err.message, code: 'readwise_sync_failure', retryable: true });
   }
 });
 
