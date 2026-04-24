@@ -1,8 +1,8 @@
 # Scribe
 
-Scribe is a writing tool built around your personal knowledge. Start a document and Scribe automatically pulls in relevant notes from your journal ([Gloss](https://github.com/nathan0colestock-code/gloss)), highlighted passages from your reading (Readwise), and matching archived files ([Black](https://github.com/nathan0colestock-code/black)) — all in a side panel while you write. When a draft is ready, hand it to [Comms](https://github.com/nathan0colestock-code/comms) and it drafts the outbound email in your voice, tailored to the recipient's history with you.
+Scribe is a writing tool built around your personal knowledge. Start a document and Scribe automatically pulls in relevant notes from your journal ([Gloss](https://github.com/nathan0colestock-code/gloss)), highlighted passages from your reading (Readwise), and matching archived files ([Black Hole](https://github.com/nathan0colestock-code/black)) — all in a side panel while you write. When a draft is ready, hand it to [Comms](https://github.com/nathan0colestock-code/comms) and it drafts the outbound email in your voice, tailored to the recipient's history with you.
 
-Part of a five-app personal suite: [maestro](https://github.com/nathan0colestock-code/maestro) · [gloss](https://github.com/nathan0colestock-code/gloss) · [comms](https://github.com/nathan0colestock-code/comms) · [black](https://github.com/nathan0colestock-code/black)
+Part of a five-app personal suite: [maestro](https://github.com/nathan0colestock-code/maestro) · [gloss](https://github.com/nathan0colestock-code/gloss) · [comms](https://github.com/nathan0colestock-code/comms) · [black hole](https://github.com/nathan0colestock-code/black)
 
 ![Scribe editor — block-based writing with Gloss, Archive, and Readwise in the reference panel](docs/screenshots/editor.png)
 
@@ -24,7 +24,7 @@ Part of a five-app personal suite: [maestro](https://github.com/nathan0colestock
 ### Reference panel
 Three live sources in the sidebar:
 - **Gloss** — collections, people, scripture, books, artifacts matching the doc's topic
-- **Archive** — top hits from [Black](https://github.com/nathan0colestock-code/black) (cached 5 min)
+- **Archive** — top hits from [Black Hole](https://github.com/nathan0colestock-code/black) (cached 5 min)
 - **Readwise** — searchable highlights + source books from your Readwise account
 
 Click any item to insert a citation-style blockquote at the cursor.
@@ -82,7 +82,7 @@ All routes require `Authorization: Bearer <API_KEY>` or `Bearer <SUITE_API_KEY>`
 - `GET /api/health` — liveness, no auth
 - `GET /api/status` — suite-standard status envelope
 - `GET /api/documents` — list + search
-- `POST /api/documents` — create; accepts `seed_body` for server-seeded drafts (e.g. from Black's "Open in Scribe")
+- `POST /api/documents` — create; accepts `seed_body` for server-seeded drafts (e.g. from Black Hole's "Open in Scribe")
 - `GET /api/documents/:id/pending-seed` — read-once drain of server-provided seed text
 - `GET /api/documents/:id/collaborators` — list active collaborators
 - `GET /api/documents/:id/collab-token` — WebSocket auth token
@@ -105,7 +105,7 @@ All routes require `Authorization: Bearer <API_KEY>` or `Bearer <SUITE_API_KEY>`
 ### Gloss
 - `GET /api/gloss-links/collections` — linked Gloss collections
 
-### Black
+### Black Hole
 - `GET /api/documents/:id/black-suggestions` — archive hits for the doc's topic (cached 5 min)
 
 ### Readwise
@@ -135,7 +135,7 @@ Scribe is the **longform writing** node of a five-app personal suite. Independen
 |---|---|---|
 | **[gloss](https://github.com/nathan0colestock-code/gloss)** | Personal knowledge graph (journal OCR, pages, collections, people) | "Promote to Scribe" creates docs from gloss pages; documents tagged by gloss collection |
 | **[comms](https://github.com/nathan0colestock-code/comms)** | iMessage + Gmail + contacts hub | "Send to Comms" hands a review-stage doc for Gmail drafting |
-| **[black](https://github.com/nathan0colestock-code/black)** | Personal file search (Drive, Evernote, iCloud) | Archive suggestions in the reference panel; "Open in Scribe" seeds a doc from any search result |
+| **[black hole](https://github.com/nathan0colestock-code/black)** | Personal file search (Drive, Evernote, iCloud) | Archive suggestions in the reference panel; "Open in Scribe" seeds a doc from any search result |
 | **[maestro](https://github.com/nathan0colestock-code/maestro)** | Overnight code orchestration | Polls `/api/status`; dispatches feature sets |
 
 All five apps expose `GET /api/status` → `{ app, version, ok, uptime_seconds, metrics }`, Bearer-authed.
@@ -147,3 +147,11 @@ Integration contracts live in `docs/INTEGRATIONS/` in the primary repo for each 
 ## License
 
 Private.
+
+---
+
+## Have Claude help you set this up
+
+Paste this into [Claude](https://claude.ai) to get guided setup assistance:
+
+> I want to set up Scribe from https://github.com/nathan0colestock-code/scribe. It's a block-based document editor that connects to Gloss and Readwise. Help me get the server running and create my first document. I'll share my `.env.example` and any errors as we go.
