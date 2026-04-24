@@ -68,7 +68,7 @@ Corruption safety: Yjs updates are try/catch-wrapped. A bad buffer can't brick a
 ```bash
 npm install
 cp .env.example .env              # API_KEY, GLOSS_URL, GLOSS_API_KEY
-npm run dev                        # API on :3000, Vite on :5173
+npm run dev                        # API on :3748, Vite on :5173
 npm test
 ```
 
