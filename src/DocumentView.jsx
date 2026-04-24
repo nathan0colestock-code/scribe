@@ -228,6 +228,7 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
         {canEdit && stage === 'draft' && <button onClick={runStyleCheck}>Check style</button>}
         {canComment && stage === 'review' && <button onClick={addCommentOnSelection}>Comment</button>}
         {canEdit && stage === 'review' && <button onClick={sendToComms} title="Save this doc to Gmail Drafts via comms">Send to Comms as draft</button>}
+        <ExportMenu documentId={doc.id} />
         {aiStatus && <span className="chip">{aiStatus}</span>}
       </div>
 
@@ -267,6 +268,58 @@ export function DocumentView({ me, document: initialDoc, role, isOwner }) {
       {showShare && <ShareDialog documentId={doc.id} onClose={() => setShowShare(false)} />}
       <ProofreadPopover editor={draftEditor.editor} getSuggestions={() => getProofreadState(draftEditor.editor)?.suggestions || []} />
     </div>
+  );
+}
+
+// SPEC 5: Export dropdown (PDF + Markdown) on the DocumentView toolbar.
+// Both entries are plain anchor tags so the browser handles the download
+// with Content-Disposition. We keep the menu a simple click-toggle popover
+// — no external dropdown library — so it slots in without new deps.
+function ExportMenu({ documentId }) {
+  const [open, setOpen] = React.useState(false);
+  const menuRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    function onClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
+    }
+    function onKey(e) { if (e.key === 'Escape') setOpen(false); }
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <span className="export-menu" ref={menuRef} style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(v => !v)} title="Export this document">Export ▾</button>
+      {open && (
+        <div className="export-menu-items" role="menu" style={{
+          position: 'absolute', top: '100%', right: 0, marginTop: 4,
+          background: '#1a1a1a', border: '1px solid #333', borderRadius: 6,
+          padding: 4, minWidth: 140, zIndex: 50,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        }}>
+          <a
+            role="menuitem"
+            href={`/api/documents/${encodeURIComponent(documentId)}/export.pdf`}
+            onClick={() => setOpen(false)}
+            style={{ display: 'block', padding: '6px 10px', color: '#eee', textDecoration: 'none' }}
+          >
+            Download PDF
+          </a>
+          <a
+            role="menuitem"
+            href={`/api/documents/${encodeURIComponent(documentId)}/export.md`}
+            onClick={() => setOpen(false)}
+            style={{ display: 'block', padding: '6px 10px', color: '#eee', textDecoration: 'none' }}
+          >
+            Download Markdown
+          </a>
+        </div>
+      )}
+    </span>
   );
 }
 

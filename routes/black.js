@@ -52,7 +52,9 @@ router.get('/:id/black-suggestions', async (req, res) => {
     return res.json(payload);
   }
 
-  const r = await search({ q, k });
+  // S-I-03: forward the inbound trace id so Black's logs can be stitched
+  // together with Scribe's for a single request.
+  const r = await search({ q, k, traceId: req.trace_id });
   const payload = { results: r.results || [], query: q };
   cacheSet(cacheKey, payload);
   res.json(payload);

@@ -24,8 +24,19 @@ export function ArchiveSuggestions({ documentId, insertEditor }) {
   const [err, setErr] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // S-U-02: Archive tab shows an informative empty-state card when BLACK_URL
+  // is not configured on the server. `null` until the probe completes.
+  const [configured, setConfigured] = useState(null);
+
+  useEffect(() => {
+    // Single lightweight probe; cached at the tab level via state.
+    api.archiveConfig()
+      .then(r => setConfigured(!!r?.configured))
+      .catch(() => setConfigured(false));
+  }, []);
 
   const load = useCallback(async (fresh = false) => {
+    if (configured === false) return; // don't bother hitting the proxy
     setLoading(true);
     setErr('');
     try {
@@ -37,12 +48,34 @@ export function ArchiveSuggestions({ documentId, insertEditor }) {
     } finally {
       setLoading(false);
     }
-  }, [documentId]);
+  }, [documentId, configured]);
 
-  useEffect(() => { load(false); }, [load]);
+  useEffect(() => { if (configured === true) load(false); }, [load, configured]);
 
   const shown = expanded ? results : results.slice(0, INITIAL_LIMIT);
   const hasMore = !expanded && results.length > INITIAL_LIMIT;
+
+  // S-U-02: unconfigured empty state — explicit hint rather than a silent hide.
+  if (configured === false) {
+    return (
+      <div className="archive-section">
+        <div className="archive-header">
+          <h4>Archive</h4>
+        </div>
+        <div className="empty-state-card" style={{
+          padding: 14, border: '1px dashed #555', borderRadius: 8,
+          color: '#bbb', lineHeight: 1.45,
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Archive not configured</div>
+          <div style={{ fontSize: 13 }}>
+            Set <code>BLACK_URL</code> (and <code>BLACK_API_KEY</code> or
+            <code> SUITE_API_KEY</code>) in your Fly secrets to enable archive
+            search. Exports and auto-archive will become available automatically.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="archive-section">
